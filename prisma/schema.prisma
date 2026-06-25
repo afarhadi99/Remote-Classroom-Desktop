@@ -17,6 +17,13 @@ model Teacher {
   password  String // bcrypt hash
   createdAt DateTime    @default(now())
   classes   Classroom[]
+
+  // Billing / plan
+  plan                 String    @default("free") // free | pro
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?
+  planStatus           String? // active | trialing | past_due | canceled
+  currentPeriodEnd     DateTime?
 }
 
 model Classroom {
@@ -42,6 +49,10 @@ model Student {
   volumeName  String?
   joinedAt    DateTime  @default(now())
   machines    Machine[]
+
+  // Monthly desktop-time usage (for plan limits). usageMonth is "YYYY-MM".
+  usageMonth   String?
+  usageMinutes Int     @default(0)
 
   @@unique([classroomId, name]) // one identity per name within a class
 }

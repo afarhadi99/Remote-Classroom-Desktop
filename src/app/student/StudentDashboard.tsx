@@ -34,6 +34,7 @@ interface Payload {
     defaultDurationMin: number
     allowStudentBoot: boolean
   }
+  usage: { remaining: number; unlimited: boolean; sessionCap: number }
   machine: SMachine | null
 }
 
@@ -95,7 +96,7 @@ export function StudentDashboard() {
     )
   }
 
-  const { classroom, machine, student } = data
+  const { classroom, machine, student, usage } = data
   const isRunning = machine?.status === 'RUNNING' && machine.previewUrl
   const isBooting = machine && machine.status === 'PROVISIONING'
 
@@ -141,10 +142,11 @@ export function StudentDashboard() {
       ) : (
         <BootCard
           os={classroom.defaultOs}
-          duration={classroom.defaultDurationMin}
+          duration={usage.sessionCap}
           allowStudentBoot={classroom.allowStudentBoot}
           machine={machine}
           hasFiles={student.hasFiles}
+          usage={usage}
           booting={booting}
           onBoot={boot}
         />
@@ -159,6 +161,7 @@ function BootCard({
   allowStudentBoot,
   machine,
   hasFiles,
+  usage,
   booting,
   onBoot,
 }: {
@@ -167,11 +170,13 @@ function BootCard({
   allowStudentBoot: boolean
   machine: SMachine | null
   hasFiles: boolean
+  usage: { remaining: number; unlimited: boolean; sessionCap: number }
   booting: boolean
   onBoot: () => void
 }) {
   const ended = machine && ['STOPPED', 'EXPIRED'].includes(machine.status)
   const errored = machine?.status === 'ERROR'
+  const outOfMinutes = !usage.unlimited && usage.remaining <= 0
 
   return (
     <div className="mt-5 grid gap-4 md:grid-cols-[1.5fr_1fr]">
@@ -180,14 +185,22 @@ function BootCard({
           <OsIcon os={os} className="size-7" />
         </div>
         <h2 className="mt-4 text-xl font-bold text-white">
-          {ended ? 'Session ended' : errored ? 'Something went wrong' : 'Ready when you are'}
+          {outOfMinutes
+            ? 'Out of time this month'
+            : ended
+              ? 'Session ended'
+              : errored
+                ? 'Something went wrong'
+                : 'Ready when you are'}
         </h2>
         <p className="mt-1.5 text-sm text-slate-400">
-          {ended
-            ? 'Your previous desktop was shut down. Your files are saved — boot a fresh one any time.'
-            : errored
-              ? 'We couldn’t start your last desktop. You can try again.'
-              : `Boot a ${os === 'windows' ? 'Windows' : 'Linux'} desktop right in this browser tab.`}
+          {outOfMinutes
+            ? 'You’ve used all your desktop time for this month. Your files are saved — ask your teacher if you need more.'
+            : ended
+              ? 'Your previous desktop was shut down. Your files are saved — boot a fresh one any time.'
+              : errored
+                ? 'We couldn’t start your last desktop. You can try again.'
+                : `Boot a ${os === 'windows' ? 'Windows' : 'Linux'} desktop right in this browser tab.`}
         </p>
 
         {errored && machine?.errorMessage && (
@@ -197,7 +210,12 @@ function BootCard({
           </p>
         )}
 
-        {allowStudentBoot ? (
+        {outOfMinutes ? (
+          <p className="mt-6 flex items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            <Hourglass className="size-4" />
+            No desktop time left this month.
+          </p>
+        ) : allowStudentBoot ? (
           <button onClick={onBoot} disabled={booting} className="btn-primary mt-6">
             {booting ? <Spinner /> : <Rocket className="size-4" />}
             {ended || errored ? 'Boot a new desktop' : 'Boot my desktop'}
@@ -227,6 +245,13 @@ function BootCard({
           value={hasFiles ? 'Saved & ready' : 'New volume'}
           hint="Mounted as “My-Files” on the desktop"
         />
+        {!usage.unlimited && (
+          <InfoTile
+            icon={<Clock className="size-4 text-emerald-300" />}
+            label="Time left this month"
+            value={`${Math.max(0, usage.remaining)} min`}
+          />
+        )}
       </div>
     </div>
   )

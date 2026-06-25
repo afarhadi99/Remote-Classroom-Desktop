@@ -3,6 +3,7 @@ import type { Machine, Student } from '@prisma/client'
 import { prisma } from './prisma'
 import { createDesktop, destroyDesktop, getOrCreateVolume, daytonaErrorMessage } from './daytona'
 import type { OsType } from './os'
+import { getPlan, isUnlimited, currentUsageMonth, type Plan } from './plans'
 
 export const MACHINE_STATUS = {
   PENDING: 'PENDING',
@@ -53,16 +54,59 @@ export function serializeMachine(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Usage + plan limits
+// ---------------------------------------------------------------------------
+
+export interface MonthlyUsage {
+  used: number
+  limit: number
+  remaining: number
+  unlimited: boolean
+}
+
+export function monthlyUsage(student: Student, plan: Plan): MonthlyUsage {
+  const month = currentUsageMonth()
+  const used = student.usageMonth === month ? student.usageMinutes : 0
+  const limit = plan.monthlyMinutesPerStudent
+  const unlimited = isUnlimited(limit)
+  const remaining = unlimited ? limit : Math.max(0, limit - used)
+  return { used, limit, remaining, unlimited }
+}
+
+/** Adds a finished machine's runtime to the student's monthly usage. */
+async function accrueUsage(machine: Machine, endedAt: Date): Promise<void> {
+  if (!machine.studentId || !machine.startedAt) return
+  const minutes = Math.max(
+    1,
+    Math.round((endedAt.getTime() - machine.startedAt.getTime()) / 60_000),
+  )
+  const month = currentUsageMonth()
+  const student = await prisma.student.findUnique({ where: { id: machine.studentId } })
+  if (!student) return
+  const base = student.usageMonth === month ? student.usageMinutes : 0
+  await prisma.student
+    .update({
+      where: { id: student.id },
+      data: { usageMonth: month, usageMinutes: base + minutes },
+    })
+    .catch(() => {})
+}
+
+export type BootResult =
+  | { ok: true; machine: Machine }
+  | { ok: false; reason: string; studentReason: string }
+
 /**
- * Returns the active machine for a student, creating + provisioning a new one if needed.
- * Provisioning runs detached; the returned row is in PROVISIONING state.
+ * Returns the active machine for a student, creating + provisioning a new one if
+ * the student's plan limits allow. Provisioning runs detached.
  */
 export async function bootMachineForStudent(params: {
   classroomId: string
   studentId: string
   os: OsType
   durationMin: number
-}): Promise<Machine> {
+}): Promise<BootResult> {
   const existing = await prisma.machine.findFirst({
     where: {
       studentId: params.studentId,
@@ -71,20 +115,42 @@ export async function bootMachineForStudent(params: {
     },
     orderBy: { createdAt: 'desc' },
   })
-  if (existing) return existing
+  if (existing) return { ok: true, machine: existing }
+
+  const student = await prisma.student.findUnique({
+    where: { id: params.studentId },
+    include: { classroom: { include: { teacher: true } } },
+  })
+  if (!student) {
+    return { ok: false, reason: 'Student not found.', studentReason: 'Something went wrong.' }
+  }
+
+  const plan = getPlan(student.classroom.teacher.plan)
+  const usage = monthlyUsage(student, plan)
+  if (usage.remaining <= 0) {
+    return {
+      ok: false,
+      reason: `${student.name} has used all ${plan.monthlyMinutesPerStudent} desktop minutes for this month. Upgrade to Pro for unlimited student minutes.`,
+      studentReason:
+        "You've used all of your desktop time for this month. Ask your teacher if you need more.",
+    }
+  }
+
+  // Clamp the session to the plan's session cap and the student's remaining minutes.
+  const cap = Math.min(params.durationMin, plan.maxSessionMinutes)
+  const durationMin = Math.max(5, usage.unlimited ? cap : Math.min(cap, usage.remaining))
 
   const machine = await prisma.machine.create({
     data: {
       classroomId: params.classroomId,
       studentId: params.studentId,
       os: params.os,
-      durationMin: params.durationMin,
+      durationMin,
       status: 'PROVISIONING',
     },
   })
-  // fire-and-forget
   void provisionMachine(machine.id)
-  return machine
+  return { ok: true, machine }
 }
 
 /** Heavy lifting: create the Daytona desktop and flip the machine to RUNNING. */
@@ -151,10 +217,12 @@ export async function stopMachine(machineId: string): Promise<void> {
   if (machine.sandboxId) {
     await destroyDesktop(machine.sandboxId)
   }
+  const stoppedAt = new Date()
+  await accrueUsage(machine, stoppedAt)
   await prisma.machine
     .update({
       where: { id: machineId },
-      data: { status: 'STOPPED', stoppedAt: new Date(), previewUrl: null },
+      data: { status: 'STOPPED', stoppedAt, previewUrl: null },
     })
     .catch(() => {})
 }
@@ -183,6 +251,7 @@ export async function sweepExpiredMachines(): Promise<{ expired: number; stuck: 
       .update({ where: { id: m.id }, data: { status: 'EXPIRED', previewUrl: null } })
       .catch(() => {})
     if (m.sandboxId) await destroyDesktop(m.sandboxId)
+    await accrueUsage(m, now)
     await prisma.machine
       .update({ where: { id: m.id }, data: { stoppedAt: now } })
       .catch(() => {})

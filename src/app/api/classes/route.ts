@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
 import { generateJoinCode } from '@/lib/utils'
 import { isOsType } from '@/lib/os'
+import { getPlan, isUnlimited } from '@/lib/plans'
 
 export async function GET() {
   const teacher = await getTeacher()
@@ -47,6 +48,20 @@ export async function POST(req: Request) {
   const parsed = createSchema.safeParse(body)
   if (!parsed.success) return apiError('Please provide a valid class name and settings.')
 
+  // enforce plan class limit
+  const teacherRecord = await prisma.teacher.findUnique({ where: { id: teacher.id } })
+  const plan = getPlan(teacherRecord?.plan)
+  const classCount = await prisma.classroom.count({ where: { teacherId: teacher.id } })
+  if (!isUnlimited(plan.maxClasses) && classCount >= plan.maxClasses) {
+    return apiError(
+      `Your ${plan.name} plan includes ${plan.maxClasses} class${plan.maxClasses === 1 ? '' : 'es'}. Upgrade to Pro for unlimited classes.`,
+      402,
+    )
+  }
+
+  // clamp session length to the plan's session cap
+  const defaultDurationMin = Math.min(parsed.data.defaultDurationMin, plan.maxSessionMinutes)
+
   // generate a unique join code
   let joinCode = generateJoinCode()
   for (let i = 0; i < 5; i++) {
@@ -61,7 +76,7 @@ export async function POST(req: Request) {
       joinCode,
       teacherId: teacher.id,
       defaultOs: parsed.data.defaultOs,
-      defaultDurationMin: parsed.data.defaultDurationMin,
+      defaultDurationMin,
       allowStudentBoot: parsed.data.allowStudentBoot,
     },
   })

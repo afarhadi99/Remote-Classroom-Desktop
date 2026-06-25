@@ -1,5 +1,6 @@
 'use client'
 
+import { Lock } from 'lucide-react'
 import { OS_LIST, type OsType } from '@/lib/os'
 import { OsIcon } from '@/components/ui'
 import { formatDurationLabel } from '@/lib/client'
@@ -55,27 +56,38 @@ const DURATIONS = [15, 30, 45, 60, 90, 120]
 export function DurationPicker({
   value,
   onChange,
+  maxMinutes = Infinity,
 }: {
   value: number
   onChange: (min: number) => void
+  /** Options above this cap are locked (e.g. the plan's max session length). */
+  maxMinutes?: number
 }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {DURATIONS.map((d) => (
-        <button
-          type="button"
-          key={d}
-          onClick={() => onChange(d)}
-          className={cn(
-            'rounded-lg border px-3 py-1.5 text-sm font-medium transition',
-            value === d
-              ? 'border-indigo-400/60 bg-indigo-500/15 text-indigo-100'
-              : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/20',
-          )}
-        >
-          {formatDurationLabel(d)}
-        </button>
-      ))}
+      {DURATIONS.map((d) => {
+        const locked = d > maxMinutes
+        return (
+          <button
+            type="button"
+            key={d}
+            disabled={locked}
+            onClick={() => !locked && onChange(d)}
+            title={locked ? 'Upgrade to Pro for longer sessions' : undefined}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm font-medium transition',
+              locked
+                ? 'cursor-not-allowed border-white/5 bg-white/[0.02] text-slate-600'
+                : value === d
+                  ? 'border-indigo-400/60 bg-indigo-500/15 text-indigo-100'
+                  : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/20',
+            )}
+          >
+            {formatDurationLabel(d)}
+            {locked && <Lock className="size-3" />}
+          </button>
+        )
+      })}
     </div>
   )
 }

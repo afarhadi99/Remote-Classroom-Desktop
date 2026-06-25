@@ -30,11 +30,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
   const os: OsType = (parsed.data.os as OsType) ?? (student.classroom.defaultOs as OsType)
   const durationMin = parsed.data.durationMin ?? student.classroom.defaultDurationMin
 
-  const machine = await bootMachineForStudent({
+  const result = await bootMachineForStudent({
     classroomId: student.classroomId,
     studentId: student.id,
     os,
     durationMin,
   })
-  return json({ ok: true, machine: serializeMachine(machine) })
+  if (!result.ok) return apiError(result.reason, 403)
+  return json({ ok: true, machine: serializeMachine(result.machine) })
 }

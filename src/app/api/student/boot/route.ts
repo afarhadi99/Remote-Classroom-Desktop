@@ -14,12 +14,13 @@ export async function POST() {
     return apiError('Your teacher has disabled self-service booting for this class.', 403)
   }
 
-  const machine = await bootMachineForStudent({
+  const result = await bootMachineForStudent({
     classroomId: classroom.id,
     studentId: student.id,
     os: classroom.defaultOs as OsType,
     durationMin: classroom.defaultDurationMin,
   })
+  if (!result.ok) return apiError(result.studentReason, 403)
 
-  return json({ ok: true, machine: serializeMachine(machine) })
+  return json({ ok: true, machine: serializeMachine(result.machine) })
 }

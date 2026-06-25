@@ -1,7 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { LogOut } from 'lucide-react'
+import { LogOut, CreditCard } from 'lucide-react'
 import { Brand } from '@/components/ui'
 import { api } from '@/lib/client'
 import { initialsOf } from '@/lib/utils'
@@ -29,8 +30,13 @@ export function AppHeader({ name, role }: { name: string; role: 'teacher' | 'stu
               <p className="text-[11px] capitalize leading-tight text-slate-500">{role}</p>
             </div>
           </div>
+          {role === 'teacher' && (
+            <Link href="/teacher/billing" className="btn-ghost btn-sm" title="Plan & billing">
+              <CreditCard className="size-3.5" /> <span className="hidden sm:inline">Plan</span>
+            </Link>
+          )}
           <button onClick={logout} className="btn-ghost btn-sm" title="Sign out">
-            <LogOut className="size-3.5" /> Sign out
+            <LogOut className="size-3.5" /> <span className="hidden sm:inline">Sign out</span>
           </button>
         </div>
       </div>

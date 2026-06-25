@@ -54,6 +54,12 @@ No lab. No imaging. No drivers. No leftover machines burning money overnight.
 
 ![Time warning](docs/screenshots/10-time-warning.png)
 
+**Pricing for teachers (students never see this) and a self-serve billing page powered by Stripe:**
+
+| Pricing | Billing |
+|---|---|
+| ![Pricing](docs/screenshots/06-pricing.png) | ![Billing](docs/screenshots/11-billing.png) |
+
 ---
 
 ## Features
@@ -67,6 +73,29 @@ No lab. No imaging. No drivers. No leftover machines burning money overnight.
 - 🔔 **Countdown + warnings** — students see a live timer and get **5-minute, 1-minute and 30-second** warnings (in-app toasts + native browser notifications).
 - 👀 **Teacher visibility** — teachers see every machine in the class and can watch any student's live desktop; students only ever see their own.
 - 🧼 **No scary interstitials** — the desktop is proxied same-origin so Daytona's public-preview warning page never reaches students.
+- 💳 **Plans & Stripe billing** — a Free tier and a Pro tier with limits enforced across the app. Teachers upgrade via Stripe Checkout and manage their subscription in the Stripe customer portal. **Students never see pricing.**
+
+---
+
+## Plans &amp; pricing
+
+Pricing is shown to teachers only — students join with a code and never encounter a paywall.
+
+| | **Free** | **Pro — $19/mo** |
+|---|---|---|
+| Classes | 1 | Unlimited |
+| Max session length | 45 minutes | 4 hours |
+| Desktop minutes / student / month | 200 | Unlimited |
+| Linux desktops | ✅ | ✅ |
+| Windows desktops | — | ✅* |
+| Persistent storage | ✅ | ✅ |
+| Watch students live | ✅ | ✅ |
+
+Limits are enforced server-side: class creation is blocked past the cap, session length is clamped to the plan's maximum (longer options are visibly locked in the UI), and each student's monthly desktop-minutes are metered as their machines run. When a student is out of minutes they see a neutral *"out of time this month"* message — never an upsell.
+
+Billing is **optional**: the Free tier works with no Stripe configuration. Set `STRIPE_SECRET_KEY` (and `STRIPE_WEBHOOK_SECRET`) to enable Pro upgrades. The checkout uses inline price data, so no Stripe dashboard product setup is required.
+
+*\*Windows requires the Windows class enabled on your Daytona organization.*
 
 ---
 
@@ -112,6 +141,7 @@ Daytona  ──►  Sandbox (XFCE + noVNC desktop on :6080)
 - **Tailwind CSS v4** for the UI.
 - **Prisma 6 + PostgreSQL** for data.
 - **Daytona TypeScript SDK** (`@daytonaio/sdk`) for sandboxes, volumes, and preview links.
+- **Stripe** for subscriptions (Checkout + customer portal + webhooks).
 - **jose** (JWT sessions) + **bcryptjs** (password hashing) + **zod** (validation).
 
 ---
@@ -169,6 +199,22 @@ For a production build:
 npm run build
 npm start   # runs the custom server (server.mjs)
 ```
+
+### Enabling Pro upgrades (optional)
+
+The Free tier works with no extra setup. To enable Stripe checkout:
+
+1. Add your test keys to `.env`:
+   ```bash
+   STRIPE_SECRET_KEY="sk_test_..."
+   STRIPE_WEBHOOK_SECRET="whsec_..."   # from `stripe listen`
+   ```
+2. Forward webhooks locally with the [Stripe CLI](https://docs.stripe.com/stripe-cli):
+   ```bash
+   stripe listen --forward-to localhost:3000/api/billing/webhook
+   ```
+3. Restart the app. Teachers can now upgrade from **Plan &amp; billing**; subscription
+   changes flow back through the webhook and flip the teacher's plan automatically.
 
 ---
 

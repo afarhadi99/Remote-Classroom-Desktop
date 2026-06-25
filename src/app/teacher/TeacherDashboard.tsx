@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2, Users, MonitorPlay, ArrowRight, X } from 'lucide-react'
+import { Plus, Trash2, Users, MonitorPlay, ArrowRight, X, Sparkles, Lock } from 'lucide-react'
 import { Spinner, OsIcon } from '@/components/ui'
 import { CopyButton } from '@/components/CopyButton'
 import { OsPicker, DurationPicker } from '@/components/Pickers'
@@ -22,16 +22,32 @@ interface ClassSummary {
   createdAt: string
 }
 
+interface Account {
+  plan: {
+    id: 'free' | 'pro'
+    name: string
+    maxClasses: number
+    maxClassesUnlimited: boolean
+    maxSessionMinutes: number
+  }
+  classCount: number
+}
+
 export function TeacherDashboard({ teacherName }: { teacherName: string }) {
   const toast = useToast()
   const [classes, setClasses] = useState<ClassSummary[]>([])
+  const [account, setAccount] = useState<Account | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
 
   async function load() {
     try {
-      const { classes } = await api<{ classes: ClassSummary[] }>('/api/classes')
+      const [{ classes }, acct] = await Promise.all([
+        api<{ classes: ClassSummary[] }>('/api/classes'),
+        api<Account>('/api/teacher/account'),
+      ])
       setClasses(classes)
+      setAccount(acct)
     } catch (err) {
       toast.error('Could not load classes', (err as Error).message)
     } finally {
@@ -44,20 +60,44 @@ export function TeacherDashboard({ teacherName }: { teacherName: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const plan = account?.plan
+  const atClassLimit = !!plan && !plan.maxClassesUnlimited && classes.length >= plan.maxClasses
+
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Welcome, {teacherName.split(' ')[0]}
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-white">
+              Welcome, {teacherName.split(' ')[0]}
+            </h1>
+            {plan && (
+              <Link
+                href="/teacher/billing"
+                className={
+                  plan.id === 'pro'
+                    ? 'chip border border-indigo-400/40 bg-indigo-500/15 text-indigo-200'
+                    : 'chip border border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'
+                }
+              >
+                {plan.id === 'pro' && <Sparkles className="size-3" />}
+                {plan.name} plan
+              </Link>
+            )}
+          </div>
           <p className="mt-1 text-sm text-slate-400">
             Create a class, share the code, and give every student a cloud desktop.
           </p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary">
-          <Plus className="size-4" /> New class
-        </button>
+        {atClassLimit ? (
+          <Link href="/teacher/billing" className="btn-primary">
+            <Sparkles className="size-4" /> Upgrade for more classes
+          </Link>
+        ) : (
+          <button onClick={() => setShowCreate(true)} className="btn-primary">
+            <Plus className="size-4" /> New class
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -76,6 +116,7 @@ export function TeacherDashboard({ teacherName }: { teacherName: string }) {
 
       {showCreate && (
         <CreateClassModal
+          maxMinutes={plan?.maxSessionMinutes ?? 45}
           onClose={() => setShowCreate(false)}
           onCreated={() => {
             setShowCreate(false)
@@ -178,14 +219,16 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 function CreateClassModal({
   onClose,
   onCreated,
+  maxMinutes,
 }: {
   onClose: () => void
   onCreated: () => void
+  maxMinutes: number
 }) {
   const toast = useToast()
   const [name, setName] = useState('')
   const [os, setOs] = useState<OsType>('linux')
-  const [duration, setDuration] = useState(60)
+  const [duration, setDuration] = useState(Math.min(60, maxMinutes))
   const [allowStudentBoot, setAllowStudentBoot] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -240,7 +283,12 @@ function CreateClassModal({
 
           <div>
             <label className="label">Time limit per desktop</label>
-            <DurationPicker value={duration} onChange={setDuration} />
+            <DurationPicker value={duration} onChange={setDuration} maxMinutes={maxMinutes} />
+            {maxMinutes < 120 && (
+              <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-500">
+                <Lock className="size-3" /> Longer sessions are available on Pro.
+              </p>
+            )}
           </div>
 
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3.5">

@@ -30,11 +30,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return apiError('No students have joined this class yet. Share the class code first.', 400)
   }
 
-  const machines = await Promise.all(
+  const results = await Promise.all(
     students.map((s) =>
       bootMachineForStudent({ classroomId: id, studentId: s.id, os, durationMin }),
     ),
   )
+  const booted = results.filter((r) => r.ok).length
+  const skipped = results.length - booted
 
-  return json({ ok: true, booted: machines.length, os, durationMin })
+  return json({ ok: true, booted, skipped, os, durationMin })
 }

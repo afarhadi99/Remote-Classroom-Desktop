@@ -9,12 +9,17 @@ import {
   Laptop,
   GraduationCap,
   Users,
+  Check,
+  Zap,
+  ShieldCheck,
 } from 'lucide-react'
 import { Brand, OsIcon } from '@/components/ui'
+import { PricingCards } from '@/components/Pricing'
 import { getSession } from '@/lib/auth'
 
 export default async function Home() {
   const session = await getSession()
+  const isStudent = session?.role === 'student'
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -22,17 +27,20 @@ export default async function Home() {
       <header className="sticky top-0 z-30 border-b border-white/5 bg-[#070912]/70 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-3.5">
           <Brand />
-          <nav className="flex items-center gap-2">
+          <nav className="flex items-center gap-1.5 sm:gap-2">
             {session?.role === 'teacher' ? (
               <Link href="/teacher" className="btn-primary btn-sm">
                 My classes <ArrowRight className="size-3.5" />
               </Link>
-            ) : session?.role === 'student' ? (
+            ) : isStudent ? (
               <Link href="/student" className="btn-primary btn-sm">
                 My desktop <ArrowRight className="size-3.5" />
               </Link>
             ) : (
               <>
+                <Link href="/pricing" className="hidden text-sm text-slate-300 hover:text-white sm:block sm:px-3">
+                  Pricing
+                </Link>
                 <Link href="/teacher/login" className="btn-ghost btn-sm">
                   Teacher login
                 </Link>
@@ -45,14 +53,14 @@ export default async function Home() {
         </div>
       </header>
 
-      {/* hero */}
       <main className="mx-auto w-full max-w-6xl flex-1 px-5">
+        {/* hero */}
         <section className="grid items-center gap-10 py-16 lg:grid-cols-2 lg:py-24">
           <div>
             <span className="chip border border-indigo-400/30 bg-indigo-500/10 text-indigo-200">
               <Cloud className="size-3.5" /> Powered by Daytona cloud sandboxes
             </span>
-            <h1 className="mt-5 text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl">
+            <h1 className="mt-5 text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-6xl">
               A real computer for every student,{' '}
               <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-300 bg-clip-text text-transparent">
                 in any browser.
@@ -65,14 +73,16 @@ export default async function Home() {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/teacher/signup" className="btn-primary">
-                <GraduationCap className="size-4" /> I&apos;m a teacher — get started
+                <GraduationCap className="size-4" /> Start free as a teacher
               </Link>
               <Link href="/join" className="btn-ghost">
-                <KeyRound className="size-4" /> I&apos;m a student — join with a code
+                <KeyRound className="size-4" /> Join a class with a code
               </Link>
             </div>
-            <p className="mt-4 text-xs text-slate-500">
-              Free to set up · Teachers sign up in seconds · Students just need a class code.
+            <p className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+              <span className="inline-flex items-center gap-1"><Check className="size-3.5 text-emerald-400" /> Free to start</span>
+              <span className="inline-flex items-center gap-1"><Check className="size-3.5 text-emerald-400" /> No student accounts</span>
+              <span className="inline-flex items-center gap-1"><Check className="size-3.5 text-emerald-400" /> Works on any device</span>
             </p>
           </div>
 
@@ -98,7 +108,6 @@ export default async function Home() {
                     <p className="text-xs text-white/40">connected · 58:21 remaining</p>
                   </div>
                 </div>
-                {/* taskbar */}
                 <div className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-2 backdrop-blur">
                   <OsIcon os="linux" className="size-4 text-orange-300" />
                   <span className="text-xs text-white/60">Files · Terminal · Firefox · Code</span>
@@ -111,8 +120,15 @@ export default async function Home() {
           </div>
         </section>
 
+        {/* trust bar */}
+        <section className="mb-6 grid gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:grid-cols-3">
+          <Trust icon={<Zap className="size-5 text-amber-300" />} title="Boots in seconds" body="Desktops are ready before the bell stops ringing." />
+          <Trust icon={<ShieldCheck className="size-5 text-emerald-300" />} title="Auto-shutdown" body="Time limits enforced server-side — nothing runs overnight." />
+          <Trust icon={<HardDrive className="size-5 text-cyan-300" />} title="Files persist" body="Every student keeps their work on a personal volume." />
+        </section>
+
         {/* features */}
-        <section className="grid gap-4 pb-8 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid gap-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
           <Feature
             icon={<Layers className="size-5 text-indigo-300" />}
             title="Linux or Windows"
@@ -141,29 +157,30 @@ export default async function Home() {
             From Chromebook to full desktop in three steps
           </h2>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
-            <Step
-              n={1}
-              icon={<GraduationCap className="size-5" />}
-              title="Teacher creates a class"
-              body="Sign up, name your class, choose Linux or Windows and a time limit. You get a join code to share."
-            />
-            <Step
-              n={2}
-              icon={<Users className="size-5" />}
-              title="Students join with the code"
-              body="Students enter the code and their name — no password, no setup. They each get their own machine."
-            />
-            <Step
-              n={3}
-              icon={<Cloud className="size-5" />}
-              title="Everyone boots a desktop"
-              body="Boot the whole class at once, or let students start their own. The desktop opens right in the browser."
-            />
+            <Step n={1} icon={<GraduationCap className="size-5" />} title="Teacher creates a class" body="Sign up, name your class, choose Linux or Windows and a time limit. You get a join code to share." />
+            <Step n={2} icon={<Users className="size-5" />} title="Students join with the code" body="Students enter the code and their name — no password, no setup. They each get their own machine." />
+            <Step n={3} icon={<Cloud className="size-5" />} title="Everyone boots a desktop" body="Boot the whole class at once, or let students start their own. The desktop opens right in the browser." />
           </div>
         </section>
 
+        {/* pricing */}
+        {!isStudent && (
+          <section id="pricing" className="py-12">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold tracking-tight text-white">Pricing for teachers</h2>
+              <p className="mx-auto mt-3 max-w-xl text-slate-400">
+                Start free with one class. Go Pro for unlimited classes, longer sessions and
+                unlimited student time. Students never pay — and never see pricing.
+              </p>
+            </div>
+            <div className="mx-auto mt-8 max-w-3xl">
+              <PricingCards variant="public" />
+            </div>
+          </section>
+        )}
+
         {/* problem / solution callout */}
-        <section className="mb-16 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-indigo-600/10 to-cyan-500/5 p-8">
+        <section className="mb-12 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-indigo-600/10 to-cyan-500/5 p-8">
           <div className="grid items-center gap-6 md:grid-cols-[1.4fr_1fr]">
             <div>
               <h3 className="text-xl font-semibold text-white">Why this exists</h3>
@@ -186,14 +203,46 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
+        {/* final CTA */}
+        <section className="mb-16 rounded-2xl border border-indigo-400/20 bg-gradient-to-br from-indigo-600/15 to-violet-600/10 p-10 text-center">
+          <h2 className="text-2xl font-bold tracking-tight text-white">
+            Give your class a real computer today
+          </h2>
+          <p className="mx-auto mt-3 max-w-lg text-slate-300">
+            Set up your first class in under a minute. Free to start, no credit card required.
+          </p>
+          <Link href="/teacher/signup" className="btn-primary mt-6 inline-flex">
+            <GraduationCap className="size-4" /> Create your free teacher account
+          </Link>
+        </section>
       </main>
 
       <footer className="border-t border-white/5 py-6">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-5 text-sm text-slate-500 sm:flex-row">
           <Brand />
-          <p>Built with Next.js + Daytona · Cloud desktops for the classroom.</p>
+          <div className="flex items-center gap-4">
+            {!isStudent && (
+              <Link href="/pricing" className="hover:text-slate-300">
+                Pricing
+              </Link>
+            )}
+            <span>Built with Next.js + Daytona</span>
+          </div>
         </div>
       </footer>
+    </div>
+  )
+}
+
+function Trust({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/5">{icon}</span>
+      <div>
+        <p className="text-sm font-semibold text-slate-100">{title}</p>
+        <p className="text-xs text-slate-400">{body}</p>
+      </div>
     </div>
   )
 }
@@ -208,17 +257,7 @@ function Feature({ icon, title, body }: { icon: React.ReactNode; title: string; 
   )
 }
 
-function Step({
-  n,
-  icon,
-  title,
-  body,
-}: {
-  n: number
-  icon: React.ReactNode
-  title: string
-  body: string
-}) {
+function Step({ n, icon, title, body }: { n: number; icon: React.ReactNode; title: string; body: string }) {
   return (
     <div className="card relative p-6">
       <span className="absolute right-5 top-5 text-5xl font-bold text-white/5">{n}</span>

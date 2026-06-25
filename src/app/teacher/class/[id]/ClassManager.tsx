@@ -12,6 +12,7 @@ import {
   Settings2,
   Monitor,
   AlertTriangle,
+  Sparkles,
 } from 'lucide-react'
 import { Spinner, StatusBadge, OsIcon } from '@/components/ui'
 import { CopyButton } from '@/components/CopyButton'
@@ -39,6 +40,7 @@ interface SStudent {
   name: string
   joinedAt: string
   machine: SMachine | null
+  usage?: { used: number; remaining: number; unlimited: boolean }
 }
 interface SClassroom {
   id: string
@@ -48,8 +50,16 @@ interface SClassroom {
   defaultDurationMin: number
   allowStudentBoot: boolean
 }
+interface PlanInfo {
+  id: 'free' | 'pro'
+  name: string
+  maxSessionMinutes: number
+  monthlyMinutesPerStudent: number
+  monthlyUnlimited: boolean
+}
 interface ClassData {
   classroom: SClassroom
+  plan: PlanInfo
   students: SStudent[]
   machines: SMachine[]
 }
@@ -75,7 +85,7 @@ export function ClassManager({ classId }: { classId: string }) {
       setData(d)
       if (!initialized.current) {
         setOs(d.classroom.defaultOs)
-        setDuration(d.classroom.defaultDurationMin)
+        setDuration(Math.min(d.classroom.defaultDurationMin, d.plan.maxSessionMinutes))
         initialized.current = true
       }
     } catch (err) {
@@ -266,6 +276,7 @@ export function ClassManager({ classId }: { classId: string }) {
                   <label className="label">Time limit</label>
                   <DurationPicker
                     value={duration}
+                    maxMinutes={data.plan.maxSessionMinutes}
                     onChange={(v) => {
                       setDuration(v)
                       setSettingsTouched(true)
@@ -274,6 +285,14 @@ export function ClassManager({ classId }: { classId: string }) {
                   <p className="mt-3 text-xs text-slate-500">
                     Desktops auto-shut down after {formatDurationLabel(duration)}. Students are
                     warned at 5 min, 1 min and 30 sec.
+                    {data.plan.id === 'free' && (
+                      <>
+                        {' '}
+                        <Link href="/teacher/billing" className="text-indigo-400 hover:text-indigo-300">
+                          Upgrade for longer sessions →
+                        </Link>
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
@@ -307,6 +326,7 @@ export function ClassManager({ classId }: { classId: string }) {
                 <StudentCard
                   key={s.id}
                   student={s}
+                  monthlyUnlimited={data.plan.monthlyUnlimited}
                   busy={!!busy[s.id]}
                   onBoot={() => bootStudent(s.id)}
                   onStop={(mid) => stopMachine(mid, s.id)}
@@ -323,12 +343,14 @@ export function ClassManager({ classId }: { classId: string }) {
 
 function StudentCard({
   student,
+  monthlyUnlimited,
   busy,
   onBoot,
   onStop,
   onOpen,
 }: {
   student: SStudent
+  monthlyUnlimited: boolean
   busy: boolean
   onBoot: () => void
   onStop: (machineId: string) => void
@@ -337,6 +359,8 @@ function StudentCard({
   const m = student.machine
   const isActive = m && ACTIVE.includes(m.status)
   const isRunning = m?.status === 'RUNNING'
+  const usage = student.usage
+  const outOfMinutes = !monthlyUnlimited && usage != null && usage.remaining <= 0
 
   return (
     <div className="card flex flex-col gap-3 p-4">
@@ -360,6 +384,18 @@ function StudentCard({
         )}
       </div>
 
+      {usage && !monthlyUnlimited && (
+        <p className="text-[11px] text-slate-500">
+          {outOfMinutes ? (
+            <span className="text-amber-300">Monthly desktop time used up</span>
+          ) : (
+            <>
+              <span className="text-slate-300">{usage.remaining} min</span> left this month
+            </>
+          )}
+        </p>
+      )}
+
       {m?.status === 'ERROR' && m.errorMessage && (
         <p className="flex items-start gap-1.5 rounded-lg border border-red-500/25 bg-red-500/10 px-2.5 py-2 text-xs text-red-200">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
@@ -381,6 +417,10 @@ function StudentCard({
           <button disabled className="btn-ghost btn-sm flex-1">
             <Spinner className="size-3.5" /> Booting…
           </button>
+        ) : outOfMinutes ? (
+          <Link href="/teacher/billing" className="btn-ghost btn-sm flex-1">
+            <Sparkles className="size-3.5" /> Upgrade for more time
+          </Link>
         ) : (
           <button onClick={onBoot} disabled={busy} className="btn-ghost btn-sm flex-1">
             {busy ? <Spinner className="size-3.5" /> : <PlayCircle className="size-3.5" />} Boot desktop

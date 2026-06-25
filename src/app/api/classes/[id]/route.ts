@@ -1,8 +1,9 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
-import { serializeMachine, stopClassroomMachines } from '@/lib/machines'
+import { serializeMachine, stopClassroomMachines, monthlyUsage } from '@/lib/machines'
 import { isOsType } from '@/lib/os'
+import { getPlan, isUnlimited } from '@/lib/plans'
 
 async function ownedClass(teacherId: string, id: string) {
   return prisma.classroom.findFirst({ where: { id, teacherId } })
@@ -15,6 +16,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const classroom = await ownedClass(teacher.id, id)
   if (!classroom) return apiError('Class not found.', 404)
+
+  const teacherRecord = await prisma.teacher.findUnique({ where: { id: teacher.id } })
+  const plan = getPlan(teacherRecord?.plan)
 
   const [students, machines] = await Promise.all([
     prisma.student.findMany({
@@ -39,12 +43,23 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       allowStudentBoot: classroom.allowStudentBoot,
       createdAt: classroom.createdAt.toISOString(),
     },
-    students: students.map((s) => ({
-      id: s.id,
-      name: s.name,
-      joinedAt: s.joinedAt.toISOString(),
-      machine: s.machines[0] ? serializeMachine(s.machines[0]) : null,
-    })),
+    plan: {
+      id: plan.id,
+      name: plan.name,
+      maxSessionMinutes: plan.maxSessionMinutes,
+      monthlyMinutesPerStudent: plan.monthlyMinutesPerStudent,
+      monthlyUnlimited: isUnlimited(plan.monthlyMinutesPerStudent),
+    },
+    students: students.map((s) => {
+      const usage = monthlyUsage(s, plan)
+      return {
+        id: s.id,
+        name: s.name,
+        joinedAt: s.joinedAt.toISOString(),
+        machine: s.machines[0] ? serializeMachine(s.machines[0]) : null,
+        usage: { used: usage.used, remaining: usage.remaining, unlimited: usage.unlimited },
+      }
+    }),
     machines: machines.map((m) => serializeMachine(m)),
   })
 }
@@ -68,7 +83,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const parsed = patchSchema.safeParse(body)
   if (!parsed.success) return apiError('Invalid settings.')
 
-  const updated = await prisma.classroom.update({ where: { id }, data: parsed.data })
+  // clamp session length to the teacher's plan cap
+  const data = { ...parsed.data }
+  if (typeof data.defaultDurationMin === 'number') {
+    const teacherRecord = await prisma.teacher.findUnique({ where: { id: teacher.id } })
+    const plan = getPlan(teacherRecord?.plan)
+    data.defaultDurationMin = Math.min(data.defaultDurationMin, plan.maxSessionMinutes)
+  }
+
+  const updated = await prisma.classroom.update({ where: { id }, data })
   return json({ ok: true, classroom: { id: updated.id, name: updated.name } })
 }
 

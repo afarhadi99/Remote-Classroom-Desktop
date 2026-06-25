@@ -58,11 +58,26 @@ async function main() {
   await tp.waitForTimeout(800)
   await shot(tp, '04-teacher-dashboard')
 
-  // create-class modal
-  await tp.getByRole('button', { name: /New class/ }).first().click()
-  await tp.waitForTimeout(500)
-  await shot(tp, '05-create-class')
-  await tp.keyboard.press('Escape').catch(() => {})
+  // pricing page
+  await tp.goto(`${BASE}/pricing`, { waitUntil: 'networkidle' })
+  await tp.waitForTimeout(600)
+  await shot(tp, '06-pricing')
+
+  // billing page
+  await tp.goto(`${BASE}/teacher/billing`, { waitUntil: 'networkidle' })
+  await tp.waitForTimeout(800)
+  await shot(tp, '11-billing')
+
+  // create-class modal (only if under the class limit; otherwise skip)
+  await tp.goto(`${BASE}/teacher`, { waitUntil: 'networkidle' })
+  await tp.waitForTimeout(600)
+  const newClassBtn = tp.getByRole('button', { name: /New class/ })
+  if (await newClassBtn.count()) {
+    await newClassBtn.first().click()
+    await tp.waitForTimeout(500)
+    await shot(tp, '05-create-class')
+    await tp.keyboard.press('Escape').catch(() => {})
+  }
 
   // ---- 3. Student joins + boots ----
   const studentCtx = await browser.newContext({ viewport: { width: 1280, height: 860 } })
