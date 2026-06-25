@@ -32,9 +32,16 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# screenshots are committed for the README
+!/docs/screenshots/*.png
 
 # vercel
 .vercel
+
+# local tooling / editor
+.claude/
 
 # typescript
 *.tsbuildinfo

@@ -1,36 +1,199 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Remote Classroom Desktop
 
-## Getting Started
+**Give every student a real Linux or Windows desktop — right inside their browser. No matter what device they're on.**
 
-First, run the development server:
+Remote Classroom Desktop is a Google-Classroom-style web app for teachers who need their students on a real operating system, but whose students only have Chromebooks (or iPads, or whatever the school could afford). Teachers create a class, share a join code, and with one click boot a full cloud desktop for every student. Each student gets their own machine **and** a personal storage volume that keeps their files forever — even after the machine is destroyed.
+
+It's powered by [Daytona](https://www.daytona.io/docs/en/), which provisions the actual desktops on demand and streams them to the browser over noVNC.
+
+<p align="center">
+  <img src="docs/screenshots/01-landing.png" alt="Remote Classroom Desktop landing page" width="100%">
+</p>
+
+---
+
+## The problem this solves
+
+Schools hand out **Chromebooks** because they're cheap, locked-down, and easy to manage at scale. That's great — until a class actually needs a *computer*:
+
+- A programming class needs a **Linux terminal**, a compiler, Docker, VS Code.
+- A CTE or design class needs **Windows-only software**.
+- A networking or security class needs **root** and a sandbox they can safely break.
+
+A Chromebook can't run any of that. The traditional answer is a **computer lab**: buy 30 machines, image them, patch them, repair them, and replace them every few years. It's expensive, it doesn't travel home, and it's a maintenance nightmare.
+
+### The solution: rent the computer by the minute
+
+Instead of *owning* hardware, Remote Classroom Desktop **rents it on demand** from Daytona:
+
+1. The teacher picks an OS (**Linux** or **Windows**) and a time limit.
+2. Daytona spins up a real cloud sandbox running a full XFCE desktop with VNC.
+3. The desktop is streamed into the student's browser tab — so a $200 Chromebook becomes a window into any operating system.
+4. When the timer ends, the machine is **torn down automatically** so nothing runs (and bills) longer than it should.
+5. The student's files live on a **persistent volume** that's re-mounted next time, so their work is never lost.
+
+No lab. No imaging. No drivers. No leftover machines burning money overnight.
+
+---
+
+## Demo
+
+| Teacher dashboard | Create a class |
+|---|---|
+| ![Teacher dashboard](docs/screenshots/04-teacher-dashboard.png) | ![Create class](docs/screenshots/05-create-class.png) |
+
+| Class command center | Student boots a desktop |
+|---|---|
+| ![Class manager](docs/screenshots/07-class-manager.png) | ![Student dashboard](docs/screenshots/08-student-ready.png) |
+
+**A real Linux desktop, embedded in the browser — note the persistent `My-Files` folder:**
+
+![Live desktop](docs/screenshots/09-live-desktop.png)
+
+**Built-in time-limit warnings (5 min / 1 min / 30 sec) before the machine shuts down:**
+
+![Time warning](docs/screenshots/10-time-warning.png)
+
+---
+
+## Features
+
+- 🎓 **Teacher accounts** — sign up with email + password in seconds.
+- 🔑 **Class codes** — students join with a code and their name, just like Google Classroom. No accounts to provision.
+- 🖥️ **Linux & Windows** — choose the OS per class. (Linux works out of the box; see [OS support](#operating-system-support).)
+- 🚀 **Boot the whole class at once, or let students self-serve** — one click provisions a desktop for every enrolled student; students can also boot their own.
+- 💾 **Persistent per-student storage** — each student's files are mounted as `My-Files` on the desktop and survive machine restarts.
+- ⏱️ **Time limits + auto-shutdown** — set a duration; machines are torn down automatically when it expires. A server-side sweeper enforces it even if no one's watching, and Daytona's inactivity auto-stop is a second safety net.
+- 🔔 **Countdown + warnings** — students see a live timer and get **5-minute, 1-minute and 30-second** warnings (in-app toasts + native browser notifications).
+- 👀 **Teacher visibility** — teachers see every machine in the class and can watch any student's live desktop; students only ever see their own.
+- 🧼 **No scary interstitials** — the desktop is proxied same-origin so Daytona's public-preview warning page never reaches students.
+
+---
+
+## How it works
+
+```
+Browser (student/teacher)
+        │  HTTPS + WebSocket (same origin)
+        ▼
+Next.js app  ──────────────►  Postgres   (teachers, classes, students, machines)
+   │  server.mjs reverse-proxies /desktop/* to Daytona,
+   │  injecting X-Daytona-Skip-Preview-Warning
+   ▼
+Daytona  ──►  Sandbox (XFCE + noVNC desktop on :6080)
+              + persistent Volume mounted at ~/Desktop/My-Files
+```
+
+- **Provisioning** (`src/lib/machines.ts`, `src/lib/daytona.ts`): when a desktop is booted, the app gets/creates the student's volume, waits for it to be `ready`, creates a Daytona sandbox from the desktop snapshot with the volume mounted, starts the computer-use processes (`Xvfb`, `xfce4`, `x11vnc`, `novnc`), and stores the preview URL. The machine row moves `PROVISIONING → RUNNING`.
+- **The desktop proxy** (`server.mjs`): Daytona shows a one-time security interstitial for public preview links. We avoid it entirely by routing the noVNC page, its assets, and the VNC WebSocket through our own origin (`/desktop/<host>/...`) and injecting the documented `X-Daytona-Skip-Preview-Warning: true` header on every upstream request. The proxy only forwards to validated `*.daytona*` hosts, so it isn't an open proxy.
+- **Time limits**: every machine has an `expiresAt`. The client renders a live countdown and fires warnings as it crosses 5 min / 1 min / 30 sec. A 30-second in-process **sweeper** (`src/lib/sweeper.ts`, started from `src/instrumentation.ts`) tears down any expired sandbox. There's also a `GET /api/cron/sweep` endpoint for external schedulers in serverless deployments.
+- **Persistence**: each student maps to a named Daytona volume mounted at `~/Desktop/My-Files`. The sandbox (compute) is ephemeral and deleted on stop; the volume (files) persists and is re-mounted on the next boot.
+
+### Roles & data model
+
+`Teacher → Classroom (joinCode) → Student → Machine`, plus a per-student persistent `Volume`. Sessions are signed JWTs in an httpOnly cookie. Teachers authenticate with a password; students authenticate by knowing the class code (their name is their identity within the class).
+
+---
+
+## Operating system support
+
+| OS | Status |
+|---|---|
+| **Linux** (Ubuntu + XFCE) | ✅ Fully working out of the box. |
+| **Windows** | ⚠️ Selectable in the UI and fully wired up, but Daytona gates the `windows` sandbox class behind an organization/plan entitlement. Until it's enabled on your Daytona org, booting Windows returns a clear message: *"Windows is not enabled on your Daytona organization yet."* The moment your org is entitled, it works with no code changes. |
+
+> macOS is intentionally not offered (no licensed cloud-macOS path), so the UI exposes **Linux and Windows** only, as scoped.
+
+---
+
+## Tech stack
+
+- **Next.js 16** (App Router, React 19, TypeScript) on a small custom Node server (`server.mjs`) for the desktop reverse-proxy.
+- **Tailwind CSS v4** for the UI.
+- **Prisma 6 + PostgreSQL** for data.
+- **Daytona TypeScript SDK** (`@daytonaio/sdk`) for sandboxes, volumes, and preview links.
+- **jose** (JWT sessions) + **bcryptjs** (password hashing) + **zod** (validation).
+
+---
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 20+
+- Docker (for local Postgres)
+- A [Daytona](https://app.daytona.io) account + API key
+
+### 1. Clone & install
+
+```bash
+git clone https://github.com/<you>/remote-classroom-desktop.git
+cd remote-classroom-desktop
+npm install
+```
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set your `DAYTONA_API_KEY` and a random `JWT_SECRET`. (See `.env.example` for all options.)
+
+### 3. Start Postgres
+
+```bash
+docker run -d --name rcd-postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=remote_classroom \
+  -p 5544:5432 postgres:16-alpine
+```
+
+### 4. Apply the database schema
+
+```bash
+npx prisma migrate dev
+```
+
+### 5. Run it
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 — sign up as a teacher, create a class, then open the join page in another browser/incognito window to join as a student.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+For a production build:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start   # runs the custom server (server.mjs)
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Cleaning up
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Desktops are deleted automatically when their timer expires, when a teacher hits **Shut down all**, or when a student shuts down. To remove the local database, stop and delete the Postgres container:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+docker rm -f rcd-postgres
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Security notes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `DAYTONA_API_KEY` and `JWT_SECRET` live only in `.env` (gitignored) and are used server-side only.
+- The `/desktop` reverse-proxy validates that the target hostname is a Daytona preview host before forwarding, so it can't be abused as an open proxy.
+- Student auth is intentionally lightweight (class code + name), matching the Google-Classroom model. For higher-stakes deployments, add a per-student PIN.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+*Built as a demonstration of using Daytona to make any operating system available to any student, on any device.*

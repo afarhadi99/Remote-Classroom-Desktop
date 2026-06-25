@@ -1,0 +1,74 @@
+// Remote Classroom Desktop — data model
+// Postgres via Prisma. Run `npx prisma migrate dev` to apply.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Teacher {
+  id        String      @id @default(cuid())
+  email     String      @unique
+  name      String
+  password  String // bcrypt hash
+  createdAt DateTime    @default(now())
+  classes   Classroom[]
+}
+
+model Classroom {
+  id                 String    @id @default(cuid())
+  name               String
+  joinCode           String    @unique // e.g. ABC-123
+  teacherId          String
+  teacher            Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  defaultOs          String    @default("linux") // linux | windows
+  defaultDurationMin Int       @default(60) // time limit applied to machines
+  allowStudentBoot   Boolean   @default(true) // students can boot their own machine
+  createdAt          DateTime  @default(now())
+  students           Student[]
+  machines           Machine[]
+}
+
+model Student {
+  id          String    @id @default(cuid())
+  name        String
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  volumeId    String? // Daytona persistent volume id (created on first boot)
+  volumeName  String?
+  joinedAt    DateTime  @default(now())
+  machines    Machine[]
+
+  @@unique([classroomId, name]) // one identity per name within a class
+}
+
+// One machine row per (active) desktop. Status drives the UI lifecycle.
+model Machine {
+  id           String    @id @default(cuid())
+  classroomId  String
+  classroom    Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  studentId    String?
+  student      Student?  @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  os           String    @default("linux") // linux | windows
+  status       String    @default("PENDING") // PENDING, PROVISIONING, RUNNING, STOPPING, STOPPED, EXPIRED, ERROR
+  sandboxId    String? // Daytona sandbox id
+  previewUrl   String? // full noVNC url to embed
+  errorMessage String?
+
+  durationMin  Int       @default(60) // time limit in minutes
+  startedAt    DateTime?
+  expiresAt    DateTime? // hard stop time = startedAt + durationMin
+  stoppedAt    DateTime?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([classroomId])
+  @@index([studentId])
+  @@index([status])
+}
