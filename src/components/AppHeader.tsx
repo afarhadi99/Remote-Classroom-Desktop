@@ -1,43 +1,49 @@
-'use client'
+"use client"
 
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { LogOut, CreditCard } from 'lucide-react'
-import { Brand } from '@/components/ui'
-import { api } from '@/lib/client'
-import { initialsOf } from '@/lib/utils'
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { LogOut, CreditCard } from "lucide-react"
+import { Brand } from "@/components/brand"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { api } from "@/lib/client"
+import { initialsOf } from "@/lib/utils"
 
-export function AppHeader({ name, role }: { name: string; role: 'teacher' | 'student' }) {
+export function AppHeader({ name, role }: { name: string; role: "teacher" | "student" }) {
   const router = useRouter()
 
   async function logout() {
-    await api('/api/auth/logout', { method: 'POST' }).catch(() => {})
-    router.push('/')
+    await api("/api/auth/logout", { method: "POST" }).catch(() => {})
+    router.push("/")
     router.refresh()
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/5 bg-[#070912]/80 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-3">
-        <Brand href={role === 'teacher' ? '/teacher' : '/student'} />
-        <div className="flex items-center gap-3">
+        <Brand href={role === "teacher" ? "/teacher" : "/student"} />
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-2.5">
-            <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-semibold text-white">
-              {initialsOf(name) || (role === 'teacher' ? 'T' : 'S')}
-            </span>
-            <div className="hidden sm:block">
-              <p className="text-sm font-medium leading-tight text-slate-200">{name}</p>
-              <p className="text-[11px] capitalize leading-tight text-slate-500">{role}</p>
+            <Avatar className="size-8">
+              <AvatarFallback className="bg-ink text-[11px] font-semibold text-background">
+                {initialsOf(name) || (role === "teacher" ? "T" : "S")}
+              </AvatarFallback>
+            </Avatar>
+            <div className="hidden leading-tight sm:block">
+              <p className="text-sm font-medium text-foreground">{name}</p>
+              <p className="text-[11px] capitalize text-muted-foreground">{role}</p>
             </div>
           </div>
-          {role === 'teacher' && (
-            <Link href="/teacher/billing" className="btn-ghost btn-sm" title="Plan & billing">
-              <CreditCard className="size-3.5" /> <span className="hidden sm:inline">Plan</span>
-            </Link>
+          {role === "teacher" && (
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/teacher/billing">
+                <CreditCard className="size-3.5" /> <span className="hidden sm:inline">Plan</span>
+              </Link>
+            </Button>
           )}
-          <button onClick={logout} className="btn-ghost btn-sm" title="Sign out">
+          <Button onClick={logout} variant="outline" size="sm">
             <LogOut className="size-3.5" /> <span className="hidden sm:inline">Sign out</span>
-          </button>
+          </Button>
         </div>
       </div>
     </header>

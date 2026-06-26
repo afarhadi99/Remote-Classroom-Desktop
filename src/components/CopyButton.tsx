@@ -1,22 +1,24 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { Copy, Check } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useState } from "react"
+import { Copy, Check } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 export function CopyButton({
   value,
   label,
-  className,
+  variant = "outline",
 }: {
   value: string
   label?: string
-  className?: string
+  variant?: "outline" | "secondary" | "ghost"
 }) {
   const [copied, setCopied] = useState(false)
   return (
-    <button
+    <Button
       type="button"
+      variant={variant}
+      size="sm"
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(value)
@@ -26,11 +28,9 @@ export function CopyButton({
           /* ignore */
         }
       }}
-      className={cn('btn-ghost btn-sm', className)}
-      title="Copy"
     >
-      {copied ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
-      {label ?? (copied ? 'Copied' : 'Copy')}
-    </button>
+      {copied ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
+      {label ?? (copied ? "Copied" : "Copy")}
+    </Button>
   )
 }

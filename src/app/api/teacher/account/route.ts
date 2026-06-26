@@ -21,6 +21,8 @@ export async function GET() {
       priceMonthly: plan.priceMonthly,
       maxClasses: plan.maxClasses,
       maxClassesUnlimited: isUnlimited(plan.maxClasses),
+      maxStudentsPerClass: plan.maxStudentsPerClass,
+      maxStudentsUnlimited: isUnlimited(plan.maxStudentsPerClass),
       maxSessionMinutes: plan.maxSessionMinutes,
       monthlyMinutesPerStudent: plan.monthlyMinutesPerStudent,
       monthlyUnlimited: isUnlimited(plan.monthlyMinutesPerStudent),

@@ -1,18 +1,12 @@
-'use client'
+"use client"
 
-import { Lock } from 'lucide-react'
-import { OS_LIST, type OsType } from '@/lib/os'
-import { OsIcon } from '@/components/ui'
-import { formatDurationLabel } from '@/lib/client'
-import { cn } from '@/lib/utils'
+import { Lock } from "lucide-react"
+import { OS_LIST, type OsType } from "@/lib/os"
+import { OsIcon } from "@/components/brand"
+import { formatDurationLabel } from "@/lib/client"
+import { cn } from "@/lib/utils"
 
-export function OsPicker({
-  value,
-  onChange,
-}: {
-  value: OsType
-  onChange: (os: OsType) => void
-}) {
+export function OsPicker({ value, onChange }: { value: OsType; onChange: (os: OsType) => void }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       {OS_LIST.map((os) => {
@@ -23,27 +17,27 @@ export function OsPicker({
             key={os.id}
             onClick={() => onChange(os.id)}
             className={cn(
-              'group relative overflow-hidden rounded-xl border p-3.5 text-left transition',
+              "group relative cursor-pointer rounded-lg border p-3.5 text-left transition",
               active
-                ? 'border-indigo-400/60 bg-indigo-500/10'
-                : 'border-white/10 bg-white/[0.03] hover:border-white/20',
+                ? "border-primary bg-accent ring-1 ring-primary"
+                : "border-border bg-card hover:border-foreground/20 hover:bg-muted/50",
             )}
           >
-            <div
-              className={cn(
-                'grid size-9 place-items-center rounded-lg bg-gradient-to-br text-white',
-                os.accent,
-              )}
-            >
-              <OsIcon os={os.id} className="size-5" />
+            <div className="flex items-center gap-2.5">
+              <span
+                className={cn(
+                  "grid size-8 place-items-center rounded-md",
+                  os.id === "windows" ? "bg-sky-100 text-sky-700" : "bg-orange-100 text-orange-700",
+                )}
+              >
+                <OsIcon os={os.id} className="size-4" />
+              </span>
+              <span className="text-sm font-semibold text-foreground">{os.short}</span>
             </div>
-            <p className="mt-2.5 text-sm font-semibold text-slate-100">{os.short}</p>
-            <p className="mt-0.5 text-[11px] leading-snug text-slate-400">
-              {os.id === 'windows' ? 'Needs Windows enabled on your plan' : 'Ready to boot'}
+            <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+              {os.id === "windows" ? "Needs Windows enabled on your plan" : "Ready to boot"}
             </p>
-            {active && (
-              <span className="absolute right-2 top-2 size-2 rounded-full bg-indigo-400" />
-            )}
+            {active && <span className="absolute right-2.5 top-2.5 size-2 rounded-full bg-primary" />}
           </button>
         )
       })}
@@ -60,7 +54,6 @@ export function DurationPicker({
 }: {
   value: number
   onChange: (min: number) => void
-  /** Options above this cap are locked (e.g. the plan's max session length). */
   maxMinutes?: number
 }) {
   return (
@@ -73,14 +66,14 @@ export function DurationPicker({
             key={d}
             disabled={locked}
             onClick={() => !locked && onChange(d)}
-            title={locked ? 'Upgrade to Pro for longer sessions' : undefined}
+            title={locked ? "Upgrade to Pro for longer sessions" : undefined}
             className={cn(
-              'inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm font-medium transition',
+              "inline-flex cursor-pointer items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium transition",
               locked
-                ? 'cursor-not-allowed border-white/5 bg-white/[0.02] text-slate-600'
+                ? "cursor-not-allowed border-dashed border-border bg-muted/40 text-muted-foreground/50"
                 : value === d
-                  ? 'border-indigo-400/60 bg-indigo-500/15 text-indigo-100'
-                  : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/20',
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-foreground hover:border-foreground/20 hover:bg-muted/50",
             )}
           >
             {formatDurationLabel(d)}

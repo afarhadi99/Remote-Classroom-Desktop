@@ -1,34 +1,34 @@
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import { getSession } from '@/lib/auth'
-import { Brand } from '@/components/ui'
-import { PricingCards } from '@/components/Pricing'
+import Link from "next/link"
+import { redirect } from "next/navigation"
+import { getSession } from "@/lib/auth"
+import { Brand } from "@/components/brand"
+import { Button } from "@/components/ui/button"
+import { PricingCards } from "@/components/Pricing"
 
-export const metadata = { title: 'Pricing — Remote Classroom Desktop' }
+export const metadata = { title: "Pricing — Remote Classroom" }
 
 export default async function PricingPage() {
   const session = await getSession()
-  // Students never see pricing.
-  if (session?.role === 'student') redirect('/student')
+  if (session?.role === "student") redirect("/student")
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-30 border-b border-white/5 bg-[#070912]/70 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-3.5">
           <Brand href="/" />
           <nav className="flex items-center gap-2">
-            {session?.role === 'teacher' ? (
-              <Link href="/teacher" className="btn-ghost btn-sm">
-                My classes
-              </Link>
+            {session?.role === "teacher" ? (
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/teacher">My classes</Link>
+              </Button>
             ) : (
               <>
-                <Link href="/teacher/login" className="btn-ghost btn-sm">
-                  Teacher login
-                </Link>
-                <Link href="/teacher/signup" className="btn-primary btn-sm">
-                  Start free
-                </Link>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/teacher/login">Teacher login</Link>
+                </Button>
+                <Button asChild variant="ink" size="sm">
+                  <Link href="/teacher/signup">Start free</Link>
+                </Button>
               </>
             )}
           </nav>
@@ -37,10 +37,12 @@ export default async function PricingPage() {
 
       <main className="mx-auto w-full max-w-4xl flex-1 px-5 py-16">
         <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-white">Simple pricing for teachers</h1>
-          <p className="mx-auto mt-4 max-w-xl text-lg text-slate-400">
-            Start free with one class. Upgrade to Pro when you&apos;re ready to run cloud desktops for
-            every class, all year. Students never pay — and never see pricing.
+          <h1 className="font-display text-4xl text-foreground sm:text-5xl">
+            Simple pricing for teachers
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
+            Start free with one class of up to 30 students. Upgrade to Pro when you&apos;re ready to
+            run cloud desktops for every class, all year. Students never pay — and never see pricing.
           </p>
         </div>
 
@@ -49,18 +51,18 @@ export default async function PricingPage() {
         </div>
 
         <div className="mt-16">
-          <h2 className="text-center text-xl font-semibold text-white">Questions</h2>
+          <h2 className="font-display text-center text-2xl text-foreground">Common questions</h2>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <Faq q="Do students need to pay or sign up?" a="Never. Students join with a class code and a name — no account, no payment, and they never see pricing." />
-            <Faq q="What counts as a desktop minute?" a="Time a student's desktop is actually running. When it shuts down (or the timer ends), the clock stops. Free includes 200 minutes per student each month." />
-            <Faq q="What happens at the session limit?" a="On Free, sessions are capped at 45 minutes and shut down automatically. Pro extends sessions up to 4 hours." />
-            <Faq q="Can I cancel anytime?" a="Yes. Manage or cancel your subscription from the billing page at any time; you keep Pro until the period ends." />
+            <Faq q="What counts as a desktop minute?" a="Time a student's desktop is actually running. When it shuts down, the clock stops. Free includes 200 minutes per student each month." />
+            <Faq q="How big can a free class be?" a="Free classes hold up to 30 students. Pro removes the cap along with the class and session limits." />
+            <Faq q="Can I cancel anytime?" a="Yes. Manage or cancel from the billing page at any time; you keep Pro until the period ends." />
           </div>
         </div>
       </main>
 
-      <footer className="border-t border-white/5 py-6">
-        <div className="mx-auto w-full max-w-6xl px-5 text-center text-sm text-slate-500">
+      <footer className="border-t border-border/70 py-7">
+        <div className="mx-auto w-full max-w-6xl px-5 text-center text-sm text-muted-foreground">
           Cloud desktops for the classroom · Powered by Daytona
         </div>
       </footer>
@@ -70,9 +72,9 @@ export default async function PricingPage() {
 
 function Faq({ q, a }: { q: string; a: string }) {
   return (
-    <div className="card p-5">
-      <h3 className="font-semibold text-slate-100">{q}</h3>
-      <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{a}</p>
+    <div className="rounded-xl border border-border bg-card p-5">
+      <h3 className="font-semibold text-foreground">{q}</h3>
+      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{a}</p>
     </div>
   )
 }

@@ -1,18 +1,11 @@
-'use client'
+"use client"
 
-import { useEffect, useRef, useState } from 'react'
-import {
-  Maximize2,
-  Minimize2,
-  ExternalLink,
-  Power,
-  Clock,
-  RotateCw,
-} from 'lucide-react'
-import { useToast } from '@/components/Toast'
-import { OsIcon, Spinner } from '@/components/ui'
-import { formatRemaining } from '@/lib/client'
-import { cn } from '@/lib/utils'
+import { useEffect, useRef, useState } from "react"
+import { Maximize2, Minimize2, ExternalLink, Power, Clock, RotateCw } from "lucide-react"
+import { useToast } from "@/components/Toast"
+import { OsIcon, Spinner } from "@/components/brand"
+import { formatRemaining } from "@/lib/client"
+import { cn } from "@/lib/utils"
 
 export interface ViewerMachine {
   id: string
@@ -22,11 +15,10 @@ export interface ViewerMachine {
   studentName?: string | null
 }
 
-// seconds-before-expiry -> message
 const THRESHOLDS: { at: number; title: string; msg: string }[] = [
-  { at: 300, title: '5 minutes left', msg: 'Save your work — your desktop will shut down soon.' },
-  { at: 60, title: '1 minute left', msg: 'Your session is about to end. Finish up and save to My-Files.' },
-  { at: 30, title: '30 seconds left', msg: 'Wrapping up now. Your files in My-Files are kept safe.' },
+  { at: 300, title: "5 minutes left", msg: "Save your work — your desktop will shut down soon." },
+  { at: 60, title: "1 minute left", msg: "Your session is about to end. Finish up and save to My-Files." },
+  { at: 30, title: "30 seconds left", msg: "Wrapping up now. Your files in My-Files are kept safe." },
 ]
 
 export function DesktopViewer({
@@ -48,7 +40,6 @@ export function DesktopViewer({
   const firedRef = useRef<Set<number>>(new Set())
   const lastExpiry = useRef<string | null>(null)
 
-  // reset notification state when a new session starts
   useEffect(() => {
     if (machine.expiresAt !== lastExpiry.current) {
       firedRef.current = new Set()
@@ -56,21 +47,18 @@ export function DesktopViewer({
     }
   }, [machine.expiresAt])
 
-  // request browser notification permission once
   useEffect(() => {
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
       Notification.requestPermission().catch(() => {})
     }
   }, [])
 
-  // ticking countdown + threshold notifications
   useEffect(() => {
     if (!machine.expiresAt) {
       setRemainingMs(null)
       return
     }
     const expiry = new Date(machine.expiresAt).getTime()
-
     const tick = () => {
       const ms = expiry - Date.now()
       setRemainingMs(ms)
@@ -84,11 +72,10 @@ export function DesktopViewer({
       }
       if (ms <= 0 && !firedRef.current.has(0)) {
         firedRef.current.add(0)
-        toast.warning('Session ended', 'Time is up. Your files are saved in My-Files.')
-        notifyNative('Session ended', 'Time is up. Your files are saved.')
+        toast.warning("Session ended", "Time is up. Your files are saved in My-Files.")
+        notifyNative("Session ended", "Time is up. Your files are saved.")
       }
     }
-
     tick()
     const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
@@ -96,8 +83,8 @@ export function DesktopViewer({
 
   useEffect(() => {
     const onFsChange = () => setIsFullscreen(!!document.fullscreenElement)
-    document.addEventListener('fullscreenchange', onFsChange)
-    return () => document.removeEventListener('fullscreenchange', onFsChange)
+    document.addEventListener("fullscreenchange", onFsChange)
+    return () => document.removeEventListener("fullscreenchange", onFsChange)
   }, [])
 
   const toggleFullscreen = () => {
@@ -108,35 +95,36 @@ export function DesktopViewer({
   const low = remainingMs !== null && remainingMs <= 5 * 60_000
   const critical = remainingMs !== null && remainingMs <= 60_000
 
+  const ctlBtn =
+    "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-zinc-300 transition hover:bg-white/10 hover:text-white"
+
   return (
     <div
       ref={containerRef}
-      className="flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/60 shadow-2xl shadow-black/40"
+      className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 shadow-xl"
     >
-      {/* control bar */}
-      <div className="flex items-center gap-2 border-b border-white/10 bg-[#0c1120]/90 px-3 py-2">
-        <div className="flex items-center gap-2 text-slate-300">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-white/5">
-            <OsIcon os={machine.os} className="size-4 text-slate-200" />
+      {/* toolbar */}
+      <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-3 py-2">
+        <div className="flex items-center gap-2 text-zinc-200">
+          <span className="grid size-6 place-items-center rounded-md bg-white/5">
+            <OsIcon os={machine.os} className="size-3.5 text-zinc-200" />
           </span>
           <span className="text-sm font-medium">
-            {machine.os === 'windows' ? 'Windows' : 'Linux'} desktop
-            {machine.studentName ? (
-              <span className="text-slate-500"> · {machine.studentName}</span>
-            ) : null}
+            {machine.os === "windows" ? "Windows" : "Linux"} desktop
+            {machine.studentName ? <span className="text-zinc-500"> · {machine.studentName}</span> : null}
           </span>
         </div>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1">
           {remainingMs !== null && (
             <span
               className={cn(
-                'chip border tabular-nums',
+                "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium tabular-nums",
                 critical
-                  ? 'border-red-500/40 bg-red-500/15 text-red-200'
+                  ? "bg-red-500/20 text-red-300"
                   : low
-                    ? 'border-amber-500/40 bg-amber-500/15 text-amber-200'
-                    : 'border-white/10 bg-white/5 text-slate-300',
+                    ? "bg-amber-500/20 text-amber-300"
+                    : "bg-white/5 text-zinc-300",
               )}
               title="Time remaining before auto-shutdown"
             >
@@ -144,38 +132,32 @@ export function DesktopViewer({
               {formatRemaining(remainingMs)}
             </span>
           )}
-          <button
-            onClick={() => setIframeKey((k) => k + 1)}
-            className="btn-ghost btn-sm"
-            title="Reconnect"
-          >
+          <button onClick={() => setIframeKey((k) => k + 1)} className={ctlBtn} title="Reconnect">
             <RotateCw className="size-3.5" />
           </button>
           {machine.previewUrl && (
-            <a
-              href={machine.previewUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-ghost btn-sm"
-              title="Open in new tab"
-            >
+            <a href={machine.previewUrl} target="_blank" rel="noreferrer" className={ctlBtn} title="Open in new tab">
               <ExternalLink className="size-3.5" />
             </a>
           )}
-          <button onClick={toggleFullscreen} className="btn-ghost btn-sm" title="Fullscreen">
+          <button onClick={toggleFullscreen} className={ctlBtn} title="Fullscreen">
             {isFullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
           </button>
           {onStop && (
-            <button onClick={onStop} disabled={stopping} className="btn-danger btn-sm">
+            <button
+              onClick={onStop}
+              disabled={stopping}
+              className="ml-1 inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md bg-red-500/15 px-2.5 text-xs font-medium text-red-300 transition hover:bg-red-500/25 disabled:opacity-50"
+            >
               {stopping ? <Spinner className="size-3.5" /> : <Power className="size-3.5" />}
-              {stopping ? 'Stopping' : 'Shut down'}
+              {stopping ? "Stopping" : "Shut down"}
             </button>
           )}
         </div>
       </div>
 
-      {/* desktop iframe */}
-      <div className={cn('relative w-full bg-black', compact ? 'aspect-video' : 'h-[72vh]')}>
+      {/* desktop */}
+      <div className={cn("relative w-full bg-black", compact ? "aspect-video" : "h-[72vh]")}>
         {machine.previewUrl ? (
           <iframe
             key={iframeKey}
@@ -185,9 +167,7 @@ export function DesktopViewer({
             title="Cloud desktop"
           />
         ) : (
-          <div className="absolute inset-0 grid place-items-center text-slate-500">
-            No active desktop
-          </div>
+          <div className="absolute inset-0 grid place-items-center text-zinc-500">No active desktop</div>
         )}
       </div>
     </div>
@@ -196,7 +176,7 @@ export function DesktopViewer({
 
 function notifyNative(title: string, body: string) {
   try {
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       new Notification(title, { body })
     }
   } catch {

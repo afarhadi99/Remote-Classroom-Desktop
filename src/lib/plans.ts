@@ -11,6 +11,7 @@ export interface Plan {
   /** Price in USD cents, per teacher per month. */
   priceMonthly: number
   maxClasses: number
+  maxStudentsPerClass: number
   maxSessionMinutes: number
   monthlyMinutesPerStudent: number
   features: string[]
@@ -23,10 +24,11 @@ export const PLANS: Record<PlanId, Plan> = {
     tagline: 'Perfect for trying it out with a single class.',
     priceMonthly: 0,
     maxClasses: 1,
+    maxStudentsPerClass: 30,
     maxSessionMinutes: 45,
     monthlyMinutesPerStudent: 200,
     features: [
-      '1 class',
+      '1 class, up to 30 students',
       'Sessions up to 45 minutes',
       '200 desktop minutes / student / month',
       'Full Linux desktops in the browser',
@@ -40,10 +42,11 @@ export const PLANS: Record<PlanId, Plan> = {
     tagline: 'For real classrooms running all year.',
     priceMonthly: 1900, // $19 / month
     maxClasses: UNLIMITED,
+    maxStudentsPerClass: UNLIMITED,
     maxSessionMinutes: 240,
     monthlyMinutesPerStudent: UNLIMITED,
     features: [
-      'Unlimited classes',
+      'Unlimited classes & students',
       'Sessions up to 4 hours',
       'Unlimited student desktop minutes',
       'Linux & Windows desktops*',

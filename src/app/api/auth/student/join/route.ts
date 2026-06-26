@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { setSessionCookie } from '@/lib/auth'
 import { apiError, json } from '@/lib/api'
 import { normalizeJoinCode } from '@/lib/utils'
+import { getPlan, isUnlimited } from '@/lib/plans'
 
 const schema = z.object({
   code: z.string().trim().min(1),
@@ -18,9 +19,26 @@ export async function POST(req: Request) {
   const name = parsed.data.name
 
   // joinCode is stored as XXX-XXX; compare normalized
-  const classrooms = await prisma.classroom.findMany()
+  const classrooms = await prisma.classroom.findMany({ include: { teacher: true } })
   const classroom = classrooms.find((c) => normalizeJoinCode(c.joinCode) === code)
   if (!classroom) return apiError('That class code was not found. Double-check it with your teacher.', 404)
+
+  // Enforce the plan's per-class student cap for *new* students (re-joins are fine).
+  const plan = getPlan(classroom.teacher.plan)
+  if (!isUnlimited(plan.maxStudentsPerClass)) {
+    const existingStudent = await prisma.student.findUnique({
+      where: { classroomId_name: { classroomId: classroom.id, name } },
+    })
+    if (!existingStudent) {
+      const count = await prisma.student.count({ where: { classroomId: classroom.id } })
+      if (count >= plan.maxStudentsPerClass) {
+        return apiError(
+          `This class is full (${plan.maxStudentsPerClass} students). Ask your teacher to make room or upgrade.`,
+          403,
+        )
+      }
+    }
+  }
 
   // Upsert the student identity (name unique per class). Re-joining with the same
   // name resumes the same account, machine and persistent files.

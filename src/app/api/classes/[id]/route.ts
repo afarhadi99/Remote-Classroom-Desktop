@@ -47,6 +47,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       id: plan.id,
       name: plan.name,
       maxSessionMinutes: plan.maxSessionMinutes,
+      maxStudentsPerClass: plan.maxStudentsPerClass,
+      maxStudentsUnlimited: isUnlimited(plan.maxStudentsPerClass),
       monthlyMinutesPerStudent: plan.monthlyMinutesPerStudent,
       monthlyUnlimited: isUnlimited(plan.monthlyMinutesPerStudent),
     },

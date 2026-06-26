@@ -1,14 +1,27 @@
-'use client'
+"use client"
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { Plus, Trash2, Users, MonitorPlay, ArrowRight, X, Sparkles, Lock } from 'lucide-react'
-import { Spinner, OsIcon } from '@/components/ui'
-import { CopyButton } from '@/components/CopyButton'
-import { OsPicker, DurationPicker } from '@/components/Pickers'
-import { useToast } from '@/components/Toast'
-import { api, formatDurationLabel } from '@/lib/client'
-import type { OsType } from '@/lib/os'
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { Plus, Trash2, Users, MonitorPlay, ArrowRight, Sparkles, Lock } from "lucide-react"
+import { Spinner, OsIcon } from "@/components/brand"
+import { CopyButton } from "@/components/CopyButton"
+import { OsPicker, DurationPicker } from "@/components/Pickers"
+import { useToast } from "@/components/Toast"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import { api, formatDurationLabel } from "@/lib/client"
+import type { OsType } from "@/lib/os"
 
 interface ClassSummary {
   id: string
@@ -23,13 +36,7 @@ interface ClassSummary {
 }
 
 interface Account {
-  plan: {
-    id: 'free' | 'pro'
-    name: string
-    maxClasses: number
-    maxClassesUnlimited: boolean
-    maxSessionMinutes: number
-  }
+  plan: { id: "free" | "pro"; name: string; maxClasses: number; maxClassesUnlimited: boolean; maxSessionMinutes: number }
   classCount: number
 }
 
@@ -43,13 +50,13 @@ export function TeacherDashboard({ teacherName }: { teacherName: string }) {
   async function load() {
     try {
       const [{ classes }, acct] = await Promise.all([
-        api<{ classes: ClassSummary[] }>('/api/classes'),
-        api<Account>('/api/teacher/account'),
+        api<{ classes: ClassSummary[] }>("/api/classes"),
+        api<Account>("/api/teacher/account"),
       ])
       setClasses(classes)
       setAccount(acct)
     } catch (err) {
-      toast.error('Could not load classes', (err as Error).message)
+      toast.error("Could not load classes", (err as Error).message)
     } finally {
       setLoading(false)
     }
@@ -64,44 +71,41 @@ export function TeacherDashboard({ teacherName }: { teacherName: string }) {
   const atClassLimit = !!plan && !plan.maxClassesUnlimited && classes.length >= plan.maxClasses
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-8">
+    <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold tracking-tight text-white">
-              Welcome, {teacherName.split(' ')[0]}
+          <div className="flex items-center gap-3">
+            <h1 className="font-display text-3xl text-foreground">
+              Welcome, {teacherName.split(" ")[0]}
             </h1>
             {plan && (
-              <Link
-                href="/teacher/billing"
-                className={
-                  plan.id === 'pro'
-                    ? 'chip border border-indigo-400/40 bg-indigo-500/15 text-indigo-200'
-                    : 'chip border border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'
-                }
-              >
-                {plan.id === 'pro' && <Sparkles className="size-3" />}
-                {plan.name} plan
+              <Link href="/teacher/billing">
+                <Badge variant={plan.id === "pro" ? "gold" : "outline"} className="px-2.5 py-1">
+                  {plan.id === "pro" && <Sparkles className="size-3" />}
+                  {plan.name} plan
+                </Badge>
               </Link>
             )}
           </div>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1.5 text-muted-foreground">
             Create a class, share the code, and give every student a cloud desktop.
           </p>
         </div>
         {atClassLimit ? (
-          <Link href="/teacher/billing" className="btn-primary">
-            <Sparkles className="size-4" /> Upgrade for more classes
-          </Link>
+          <Button asChild variant="ink">
+            <Link href="/teacher/billing">
+              <Sparkles className="size-4" /> Upgrade for more classes
+            </Link>
+          </Button>
         ) : (
-          <button onClick={() => setShowCreate(true)} className="btn-primary">
+          <Button variant="ink" onClick={() => setShowCreate(true)}>
             <Plus className="size-4" /> New class
-          </button>
+          </Button>
         )}
       </div>
 
       {loading ? (
-        <div className="mt-16 flex justify-center text-slate-500">
+        <div className="mt-20 flex justify-center text-muted-foreground">
           <Spinner className="size-6" />
         </div>
       ) : classes.length === 0 ? (
@@ -114,16 +118,12 @@ export function TeacherDashboard({ teacherName }: { teacherName: string }) {
         </div>
       )}
 
-      {showCreate && (
-        <CreateClassModal
-          maxMinutes={plan?.maxSessionMinutes ?? 45}
-          onClose={() => setShowCreate(false)}
-          onCreated={() => {
-            setShowCreate(false)
-            load()
-          }}
-        />
-      )}
+      <CreateClassModal
+        open={showCreate}
+        onOpenChange={setShowCreate}
+        maxMinutes={plan?.maxSessionMinutes ?? 45}
+        onCreated={load}
+      />
     </main>
   )
 }
@@ -136,98 +136,100 @@ function ClassCard({ c, onDeleted }: { c: ClassSummary; onDeleted: () => void })
     if (!confirm(`Delete "${c.name}"? This shuts down all its desktops and removes students.`)) return
     setDeleting(true)
     try {
-      await api(`/api/classes/${c.id}`, { method: 'DELETE' })
-      toast.success('Class deleted')
+      await api(`/api/classes/${c.id}`, { method: "DELETE" })
+      toast.success("Class deleted")
       onDeleted()
     } catch (err) {
-      toast.error('Could not delete', (err as Error).message)
+      toast.error("Could not delete", (err as Error).message)
       setDeleting(false)
     }
   }
 
   return (
-    <div className="card group flex flex-col p-5 transition hover:border-white/20">
-      <div className="flex items-start justify-between">
+    <Card className="group gap-0 py-0 transition hover:shadow-md">
+      <div className="flex items-start justify-between p-5 pb-3">
         <Link href={`/teacher/class/${c.id}`} className="min-w-0">
-          <h3 className="truncate text-lg font-semibold text-slate-100 group-hover:text-white">
+          <h3 className="truncate text-lg font-semibold text-foreground group-hover:text-primary">
             {c.name}
           </h3>
         </Link>
         <button
           onClick={remove}
           disabled={deleting}
-          className="rounded-lg p-1.5 text-slate-500 hover:bg-red-500/10 hover:text-red-300"
+          className="-mr-1 -mt-1 cursor-pointer rounded-md p-1.5 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
           title="Delete class"
         >
           {deleting ? <Spinner className="size-4" /> : <Trash2 className="size-4" />}
         </button>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
-        <code className="rounded-lg border border-white/10 bg-black/30 px-2.5 py-1 font-mono text-sm tracking-wider text-indigo-200">
+      <div className="flex items-center gap-2 px-5">
+        <code className="rounded-md border border-border bg-secondary px-2.5 py-1 font-mono text-sm font-medium tracking-wider text-primary">
           {c.joinCode}
         </code>
-        <CopyButton value={c.joinCode} label="Code" />
+        <CopyButton value={c.joinCode} label="Code" variant="ghost" />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2 text-xs">
-        <span className="chip border border-white/10 bg-white/5 text-slate-300">
+      <div className="mt-4 flex flex-wrap gap-2 px-5">
+        <Badge variant="secondary" className="font-normal">
           <OsIcon os={c.defaultOs} className="size-3.5" />
-          {c.defaultOs === 'windows' ? 'Windows' : 'Linux'}
-        </span>
-        <span className="chip border border-white/10 bg-white/5 text-slate-300">
+          {c.defaultOs === "windows" ? "Windows" : "Linux"}
+        </Badge>
+        <Badge variant="secondary" className="font-normal">
           {formatDurationLabel(c.defaultDurationMin)}
-        </span>
-        <span className="chip border border-white/10 bg-white/5 text-slate-300">
+        </Badge>
+        <Badge variant="secondary" className="font-normal">
           <Users className="size-3.5" /> {c.studentCount}
-        </span>
+        </Badge>
         {c.activeMachines > 0 && (
-          <span className="chip border border-emerald-500/25 bg-emerald-500/10 text-emerald-300">
+          <Badge variant="success">
             <MonitorPlay className="size-3.5" /> {c.activeMachines} live
-          </span>
+          </Badge>
         )}
       </div>
 
       <Link
         href={`/teacher/class/${c.id}`}
-        className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-400 hover:text-indigo-300"
+        className="mt-5 flex items-center gap-1.5 border-t border-border px-5 py-3 text-sm font-medium text-primary transition hover:bg-accent"
       >
         Manage class <ArrowRight className="size-4" />
       </Link>
-    </div>
+    </Card>
   )
 }
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="card mt-10 flex flex-col items-center px-6 py-16 text-center">
-      <div className="grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500/80 to-violet-600/80 text-white">
+    <div className="mt-12 flex flex-col items-center rounded-2xl border border-dashed border-border bg-card/50 px-6 py-16 text-center">
+      <div className="grid size-14 place-items-center rounded-2xl bg-ink text-background">
         <Plus className="size-7" />
       </div>
-      <h3 className="mt-4 text-lg font-semibold text-slate-100">Create your first class</h3>
-      <p className="mt-1.5 max-w-sm text-sm text-slate-400">
+      <h3 className="font-display mt-5 text-2xl text-foreground">Create your first class</h3>
+      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
         Name it, pick an operating system and a time limit, and we&apos;ll generate a join code for
         your students.
       </p>
-      <button onClick={onCreate} className="btn-primary mt-6">
+      <Button variant="ink" className="mt-6" onClick={onCreate}>
         <Plus className="size-4" /> New class
-      </button>
+      </Button>
     </div>
   )
 }
 
 function CreateClassModal({
-  onClose,
+  open,
+  onOpenChange,
   onCreated,
   maxMinutes,
 }: {
-  onClose: () => void
+  open: boolean
+  onOpenChange: (v: boolean) => void
   onCreated: () => void
   maxMinutes: number
 }) {
   const toast = useToast()
-  const [name, setName] = useState('')
-  const [os, setOs] = useState<OsType>('linux')
+  const [name, setName] = useState("")
+  const [os, setOs] = useState<OsType>("linux")
   const [duration, setDuration] = useState(Math.min(60, maxMinutes))
   const [allowStudentBoot, setAllowStudentBoot] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -236,38 +238,33 @@ function CreateClassModal({
     e.preventDefault()
     setSaving(true)
     try {
-      await api('/api/classes', {
+      await api("/api/classes", {
         body: { name, defaultOs: os, defaultDurationMin: duration, allowStudentBoot },
       })
-      toast.success('Class created', 'Share the join code with your students.')
+      toast.success("Class created", "Share the join code with your students.")
+      onOpenChange(false)
+      setName("")
       onCreated()
     } catch (err) {
-      toast.error('Could not create class', (err as Error).message)
+      toast.error("Could not create class", (err as Error).message)
+    } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="card w-full max-w-lg p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">New class</h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10">
-            <X className="size-5" />
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl">New class</DialogTitle>
+          <DialogDescription>Students will join this class with a code.</DialogDescription>
+        </DialogHeader>
 
-        <form onSubmit={create} className="mt-5 space-y-5">
-          <div>
-            <label className="label">Class name</label>
-            <input
-              className="input"
+        <form onSubmit={create} className="space-y-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="cname">Class name</Label>
+            <Input
+              id="cname"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Period 3 — Intro to Linux"
@@ -276,41 +273,34 @@ function CreateClassModal({
             />
           </div>
 
-          <div>
-            <label className="label">Operating system</label>
+          <div className="space-y-2">
+            <Label>Operating system</Label>
             <OsPicker value={os} onChange={setOs} />
           </div>
 
-          <div>
-            <label className="label">Time limit per desktop</label>
+          <div className="space-y-2">
+            <Label>Time limit per desktop</Label>
             <DurationPicker value={duration} onChange={setDuration} maxMinutes={maxMinutes} />
             {maxMinutes < 120 && (
-              <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-500">
+              <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
                 <Lock className="size-3" /> Longer sessions are available on Pro.
               </p>
             )}
           </div>
 
-          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3.5">
-            <input
-              type="checkbox"
-              checked={allowStudentBoot}
-              onChange={(e) => setAllowStudentBoot(e.target.checked)}
-              className="size-4 accent-indigo-500"
-            />
-            <span className="text-sm text-slate-300">
-              Let students boot their own desktop
-              <span className="block text-xs text-slate-500">
-                If off, only you can start their machines.
-              </span>
+          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-secondary/40 p-3.5">
+            <span className="text-sm">
+              <span className="font-medium text-foreground">Let students boot their own desktop</span>
+              <span className="block text-xs text-muted-foreground">If off, only you can start their machines.</span>
             </span>
+            <Switch checked={allowStudentBoot} onCheckedChange={setAllowStudentBoot} />
           </label>
 
-          <button type="submit" disabled={saving || !name} className="btn-primary w-full">
+          <Button type="submit" variant="ink" size="lg" className="w-full" disabled={saving || !name}>
             {saving && <Spinner />} Create class
-          </button>
+          </Button>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

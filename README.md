@@ -84,6 +84,7 @@ Pricing is shown to teachers only — students join with a code and never encoun
 | | **Free** | **Pro — $19/mo** |
 |---|---|---|
 | Classes | 1 | Unlimited |
+| Students per class | 30 | Unlimited |
 | Max session length | 45 minutes | 4 hours |
 | Desktop minutes / student / month | 200 | Unlimited |
 | Linux desktops | ✅ | ✅ |
@@ -138,7 +139,7 @@ Daytona  ──►  Sandbox (XFCE + noVNC desktop on :6080)
 ## Tech stack
 
 - **Next.js 16** (App Router, React 19, TypeScript) on a small custom Node server (`server.mjs`) for the desktop reverse-proxy.
-- **Tailwind CSS v4** for the UI.
+- **Tailwind CSS v4** + **shadcn/ui** (Radix primitives) with a custom "Chalk & Cobalt" editorial theme (warm paper, cobalt accent, Fraunces display serif) and **sonner** for toasts.
 - **Prisma 6 + PostgreSQL** for data.
 - **Daytona TypeScript SDK** (`@daytonaio/sdk`) for sandboxes, volumes, and preview links.
 - **Stripe** for subscriptions (Checkout + customer portal + webhooks).
