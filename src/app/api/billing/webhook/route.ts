@@ -13,10 +13,14 @@ export async function POST(req: Request) {
 
   let event: Stripe.Event
   try {
-    event =
-      secret && sig
-        ? stripe.webhooks.constructEvent(body, sig, secret)
-        : (JSON.parse(body) as Stripe.Event)
+    if (secret && sig) {
+      event = stripe.webhooks.constructEvent(body, sig, secret)
+    } else if (process.env.NODE_ENV !== 'production') {
+      // Local/dev convenience when no signing secret is configured.
+      event = JSON.parse(body) as Stripe.Event
+    } else {
+      return new Response('Missing STRIPE_WEBHOOK_SECRET or signature', { status: 400 })
+    }
   } catch (err) {
     return new Response(`Webhook signature verification failed: ${(err as Error).message}`, {
       status: 400,

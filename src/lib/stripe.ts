@@ -30,7 +30,12 @@ export async function syncSubscription(stripe: Stripe, subscriptionId: string): 
   if (!teacher) return
 
   const active = sub.status === 'active' || sub.status === 'trialing'
-  const periodEnd = (sub as unknown as { current_period_end?: number }).current_period_end
+  // current_period_end is top-level on older API versions and on the subscription item on newer ones.
+  const subAny = sub as unknown as {
+    current_period_end?: number
+    items?: { data?: Array<{ current_period_end?: number }> }
+  }
+  const periodEnd = subAny.current_period_end ?? subAny.items?.data?.[0]?.current_period_end
   await prisma.teacher.update({
     where: { id: teacher.id },
     data: {
