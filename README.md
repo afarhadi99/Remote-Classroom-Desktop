@@ -77,6 +77,39 @@ No lab. No imaging. No drivers. No leftover machines burning money overnight.
 - 🧼 **No scary interstitials** — the desktop is proxied same-origin so Daytona's public-preview warning page never reaches students.
 - 💳 **Plans & Stripe billing** — a Free tier and a Pro tier with limits enforced across the app. Teachers upgrade via Stripe Checkout and manage their subscription in the Stripe customer portal. **Students never see pricing.**
 
+### The full classroom toolkit
+
+On top of the core above, a 20-item teaching/operations roadmap is implemented and verified end-to-end (see [ROADMAP.md](ROADMAP.md)):
+
+**Teaching & control**
+- ✋ **"Eyes on me" focus lock** — freeze every student's screen with a full-screen overlay.
+- 📡 **Broadcast & spotlight** — push one student's (or your own demo) desktop to the whole class as a live view-only stream.
+- 📨 **Hand out & collect work** — drop a file onto every desktop, then pull submissions back from each student's folder.
+- 🙋 **Panic / raise-hand button** — students signal for help or report content; teachers get a live alert and can jump straight to that screen.
+- 📋 **Attendance** — derived automatically from who actually booted a desktop.
+- 🕹️ **Take control / remote assist** — drive a student's desktop to help them.
+
+**Safety**
+- 🌐 **Guided internet allowlist / blocklist** — open, allow-listed domains only, or no internet, enforced at Daytona's network layer.
+- 🔒 **Locked-down exam mode** — exam banner, no self-shutdown, pair with a restricted network policy.
+- 🧾 **Activity & audit log** — an append-only trail of every boot, stop, lock, hand-out and alert.
+
+**Scale & ops**
+- 📅 **Scheduled auto-boot** — desktops warm up on a weekly timetable.
+- ♻️ **Idle reclaim** — auto-stop idle desktops to save money.
+- 📊 **Cost & usage analytics** + **concurrency / spend guardrails** — see and cap what the class spends.
+- 🔥 **Pre-warm** — provision student volumes ahead of class so the first boot is instant.
+
+**Platform & collaboration**
+- 🧰 **App catalog & golden images** — pin a curated or custom Daytona snapshot per class so every desktop boots identically.
+- 👥 **Group workstations** — several students share one desktop and one volume (pair programming / group projects); every member reaches it, non-members can't.
+- 🪪 **Lesson templates** — reusable class blueprints.
+
+**Admin & billing**
+- 📥 **Roster import** — paste a class list or import a CSV to set up seats in one shot.
+- 🛠️ **Org-wide admin console** — live totals, every running desktop, raised hands across all classes, and guardrail usage on one screen.
+- 💼 **Annual billing & seat packs**, plus a documented **SSO** integration point for districts.
+
 ---
 
 ## Plans &amp; pricing
