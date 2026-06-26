@@ -57,6 +57,11 @@ export const PLANS: Record<PlanId, Plan> = {
   },
 }
 
+// Annual Pro: pay for 10 months, get 12 (~2 months free).
+export const PRO_ANNUAL_CENTS = PLANS.pro.priceMonthly * 10
+
+export type BillingCycle = 'monthly' | 'annual'
+
 export function getPlan(id?: string | null): Plan {
   return id === 'pro' ? PLANS.pro : PLANS.free
 }

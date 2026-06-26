@@ -280,6 +280,51 @@ export async function stopMachine(machineId: string): Promise<void> {
   })
 }
 
+const pad2 = (n: number) => String(n).padStart(2, '0')
+
+/**
+ * Fires any weekly schedule slot whose start time has arrived (server local time),
+ * booting every student's desktop. Idempotent per day via ClassSchedule.lastRunOn.
+ * Teardown is automatic — booted machines carry the slot's durationMin expiry.
+ */
+export async function runScheduledBoots(now: Date = new Date()): Promise<number> {
+  const weekday = now.getDay()
+  const minuteOfDay = now.getHours() * 60 + now.getMinutes()
+  const todayStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`
+  const LEAD = 2 // pre-warm up to 2 minutes early
+  const WINDOW = 3 // catch the slot within a few minutes of its start
+
+  const due = await prisma.classSchedule.findMany({ where: { enabled: true, weekday } })
+  let fired = 0
+  for (const s of due) {
+    if (s.lastRunOn === todayStr) continue
+    if (minuteOfDay < s.startMinute - LEAD || minuteOfDay > s.startMinute + WINDOW) continue
+
+    // mark fired BEFORE booting so overlapping sweeper ticks don't double-fire
+    await prisma.classSchedule.update({ where: { id: s.id }, data: { lastRunOn: todayStr } }).catch(() => {})
+
+    const students = await prisma.student.findMany({ where: { classroomId: s.classroomId } })
+    let booted = 0
+    for (const st of students) {
+      const r = await bootMachineForStudent({
+        classroomId: s.classroomId,
+        studentId: st.id,
+        os: s.os as OsType,
+        durationMin: s.durationMin,
+      })
+      if (r.ok) booted++
+    }
+    await logEvent({
+      classroomId: s.classroomId,
+      type: 'provision_all',
+      actorRole: 'system',
+      message: `Scheduled auto-boot started ${booted} desktop${booted === 1 ? '' : 's'}`,
+    })
+    fired++
+  }
+  return fired
+}
+
 /** Stops every active machine in a classroom. */
 export async function stopClassroomMachines(classroomId: string): Promise<number> {
   const machines = await prisma.machine.findMany({

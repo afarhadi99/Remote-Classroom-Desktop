@@ -22,6 +22,7 @@ import {
   FileUp,
   Inbox,
   CalendarDays,
+  CalendarClock,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -32,6 +33,7 @@ import { ActivityLog } from "./ActivityLog"
 import { FilesModal } from "@/components/FilesModal"
 import { CollectModal } from "@/components/CollectModal"
 import { AttendanceModal } from "@/components/AttendanceModal"
+import { ScheduleModal } from "@/components/ScheduleModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -106,6 +108,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [handoutBusy, setHandoutBusy] = useState(false)
   const [collectOpen, setCollectOpen] = useState(false)
   const [attendanceOpen, setAttendanceOpen] = useState(false)
+  const [scheduleOpen, setScheduleOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const initialized = useRef(false)
 
@@ -451,6 +454,9 @@ export function ClassManager({ classId }: { classId: string }) {
                 <Button variant="outline" onClick={stopAll} disabled={stoppingAll || activeCount === 0} className="text-destructive hover:bg-destructive/10">
                   {stoppingAll ? <Spinner /> : <Power className="size-4" />} Shut down all
                 </Button>
+                <Button variant="outline" onClick={() => setScheduleOpen(true)}>
+                  <CalendarClock className="size-4" /> Schedule
+                </Button>
                 {settingsTouched && (
                   <Button variant="ghost" onClick={saveSettings} disabled={savingSettings}>
                     {savingSettings ? <Spinner /> : <Settings2 className="size-4" />} Save as default
@@ -513,6 +519,12 @@ export function ClassManager({ classId }: { classId: string }) {
         className={classroom.name}
         open={attendanceOpen}
         onOpenChange={setAttendanceOpen}
+      />
+      <ScheduleModal
+        classId={classId}
+        maxMinutes={data.plan.maxSessionMinutes}
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
       />
     </main>
   )

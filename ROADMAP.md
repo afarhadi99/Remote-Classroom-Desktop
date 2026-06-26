@@ -15,7 +15,7 @@ Tracking the 20-feature roadmap. Implemented across `/loop` iterations.
 | 9 | Locked-down exam mode | Safety & Control | ☐ |
 | 10 | Content safety screening + panic button | Safety & Control | ☐ |
 | 11 | Warm pool pre-provisioning | Scale & Ops | ☐ |
-| 12 | Scheduled class auto-boot | Scale & Ops | ☐ |
+| 12 | Scheduled class auto-boot | Scale & Ops | ☑ |
 | 13 | Idle reclaim with grace warning | Scale & Ops | ☑ |
 | 14 | Cost & usage analytics dashboard | Scale & Ops | ☑ |
 | 15 | Concurrency & spend guardrails | Scale & Ops | ☑ |
@@ -23,6 +23,6 @@ Tracking the 20-feature roadmap. Implemented across `/loop` iterations.
 | 17 | Group workstations | Collaboration | ☐ |
 | 18 | Roster sync (Google Classroom & Clever) | Admin & Billing | ☐ |
 | 19 | District SSO & admin console | Admin & Billing | ☐ |
-| 20 | Annual billing & seat packs | Admin & Billing | ☐ |
+| 20 | Annual billing & seat packs | Admin & Billing | ☑ |
 
 ☐ = not started · ◐ = in progress · ☑ = done

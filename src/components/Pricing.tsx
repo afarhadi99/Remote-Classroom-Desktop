@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Check, Sparkles, Loader2 } from "lucide-react"
-import { PLANS, formatPrice, type Plan } from "@/lib/plans"
+import { PLANS, formatPrice, PRO_ANNUAL_CENTS, type Plan, type BillingCycle } from "@/lib/plans"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/Toast"
@@ -18,11 +18,16 @@ export function PricingCards({
 }) {
   const toast = useToast()
   const [loading, setLoading] = useState(false)
+  const [cycle, setCycle] = useState<BillingCycle>("monthly")
 
   async function upgrade() {
     setLoading(true)
     try {
-      const res = await fetch("/api/billing/checkout", { method: "POST" })
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cycle }),
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Checkout failed")
       window.location.href = data.url
@@ -33,10 +38,29 @@ export function PricingCards({
   }
 
   return (
-    <div className="grid items-start gap-5 md:grid-cols-2">
+    <div>
+      <div className="mb-5 flex justify-center">
+        <div className="inline-flex rounded-lg border border-border bg-card p-0.5 text-sm">
+          {(["monthly", "annual"] as BillingCycle[]).map((c) => (
+            <button
+              key={c}
+              onClick={() => setCycle(c)}
+              className={cn(
+                "cursor-pointer rounded-md px-3 py-1.5 font-medium capitalize transition",
+                cycle === c ? "bg-ink text-background" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {c}
+              {c === "annual" && <span className="ml-1 text-emerald-600">·2 mo free</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="grid items-start gap-5 md:grid-cols-2">
       <PlanCard
         plan={PLANS.free}
         highlight={false}
+        cycle={cycle}
         current={variant === "billing" && currentPlan === "free"}
         cta={
           variant === "public" ? (
@@ -53,6 +77,7 @@ export function PricingCards({
       <PlanCard
         plan={PLANS.pro}
         highlight
+        cycle={cycle}
         current={variant === "billing" && currentPlan === "pro"}
         cta={
           variant === "public" ? (
@@ -73,6 +98,7 @@ export function PricingCards({
           )
         }
       />
+      </div>
     </div>
   )
 }
@@ -81,13 +107,18 @@ function PlanCard({
   plan,
   highlight,
   current,
+  cycle,
   cta,
 }: {
   plan: Plan
   highlight: boolean
   current: boolean
+  cycle: BillingCycle
   cta: React.ReactNode
 }) {
+  const isPaidAnnual = plan.priceMonthly > 0 && cycle === "annual"
+  const priceCents = isPaidAnnual ? PRO_ANNUAL_CENTS : plan.priceMonthly
+  const period = plan.priceMonthly === 0 ? "forever" : isPaidAnnual ? "/ year" : "/ month"
   return (
     <div
       className={cn(
@@ -113,10 +144,10 @@ function PlanCard({
       <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
       <div className="mt-4 flex items-end gap-1">
         <span className="text-4xl font-bold tracking-tight text-foreground">
-          {formatPrice(plan.priceMonthly)}
+          {formatPrice(priceCents)}
         </span>
         <span className="mb-1.5 text-sm text-muted-foreground">
-          {plan.priceMonthly ? "/ month" : "forever"}
+          {period}
         </span>
       </div>
       <ul className="mt-5 flex-1 space-y-2.5">

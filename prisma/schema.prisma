@@ -48,6 +48,23 @@ model Classroom {
   students           Student[]
   machines           Machine[]
   events             ClassEvent[]
+  schedules          ClassSchedule[]
+}
+
+// A recurring weekly time slot that auto-boots a class's desktops.
+model ClassSchedule {
+  id          String    @id @default(cuid())
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  weekday     Int // 0=Sunday .. 6=Saturday (server local time)
+  startMinute Int // minutes from midnight
+  durationMin Int       @default(45)
+  os          String    @default("linux")
+  enabled     Boolean   @default(true)
+  lastRunOn   String? // "YYYY-MM-DD" guard so a slot fires once per day
+  createdAt   DateTime  @default(now())
+
+  @@index([classroomId])
 }
 
 // Append-only activity / audit trail for a class.

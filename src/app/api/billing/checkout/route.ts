@@ -1,11 +1,14 @@
 import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
 import { getStripe, appUrl } from '@/lib/stripe'
-import { PLANS } from '@/lib/plans'
+import { PLANS, PRO_ANNUAL_CENTS } from '@/lib/plans'
 
-export async function POST() {
+export async function POST(req: Request) {
   const teacher = await getTeacher()
   if (!teacher) return apiError('Unauthorized', 401)
+
+  const body = await req.json().catch(() => ({}))
+  const annual = body?.cycle === 'annual'
 
   const stripe = getStripe()
   if (!stripe) {
@@ -38,9 +41,9 @@ export async function POST() {
         quantity: 1,
         price_data: {
           currency: 'usd',
-          unit_amount: PLANS.pro.priceMonthly,
-          recurring: { interval: 'month' },
-          product_data: { name: 'Remote Classroom Desktop — Pro' },
+          unit_amount: annual ? PRO_ANNUAL_CENTS : PLANS.pro.priceMonthly,
+          recurring: { interval: annual ? 'year' : 'month' },
+          product_data: { name: `Remote Classroom Desktop — Pro (${annual ? 'annual' : 'monthly'})` },
         },
       },
     ],
