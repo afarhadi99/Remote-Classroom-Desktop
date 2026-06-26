@@ -42,5 +42,9 @@ export async function GET() {
       sessionCap: Math.min(classroom.defaultDurationMin, plan.maxSessionMinutes),
     },
     machine: machine ? serializeMachine(machine) : null,
+    beingWatched:
+      machine?.status === 'RUNNING' &&
+      !!machine.watchedUntil &&
+      machine.watchedUntil.getTime() > Date.now(),
   })
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock } from "lucide-react"
+import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock, Eye } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { DesktopViewer } from "@/components/DesktopViewer"
 import { FilesModal } from "@/components/FilesModal"
@@ -34,6 +34,7 @@ interface Payload {
   }
   usage: { remaining: number; unlimited: boolean; sessionCap: number }
   machine: SMachine | null
+  beingWatched: boolean
 }
 
 export function StudentDashboard() {
@@ -92,7 +93,7 @@ export function StudentDashboard() {
     )
   }
 
-  const { classroom, machine, student, usage } = data
+  const { classroom, machine, student, usage, beingWatched } = data
   const isRunning = machine?.status === "RUNNING" && machine.previewUrl
   const isBooting = machine && machine.status === "PROVISIONING"
 
@@ -111,6 +112,12 @@ export function StudentDashboard() {
 
       {isRunning ? (
         <div className="mt-5 space-y-4">
+          {beingWatched && (
+            <div className="flex items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm text-sky-800">
+              <Eye className="size-4" />
+              Your teacher is viewing your screen.
+            </div>
+          )}
           <DesktopViewer machine={machine!} onStop={stop} stopping={stopping} />
           <Card className="flex-row items-center gap-3 p-4">
             <FolderOpen className="size-5 shrink-0 text-primary" />

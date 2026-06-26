@@ -188,7 +188,7 @@ export async function bootMachineForStudent(params: {
 export async function provisionMachine(machineId: string): Promise<void> {
   const machine = await prisma.machine.findUnique({
     where: { id: machineId },
-    include: { student: true },
+    include: { student: true, classroom: true },
   })
   if (!machine) return
 
@@ -206,7 +206,9 @@ export async function provisionMachine(machineId: string): Promise<void> {
       }
     }
 
-    const autoStop = Math.max(5, Math.min(machine.durationMin, 30))
+    // Idle reclaim: Daytona auto-stops the sandbox after this many inactive minutes.
+    const idle = machine.classroom?.idleTimeoutMin ?? 20
+    const autoStop = idle > 0 ? Math.max(5, idle) : 0
     const handle = await createDesktop({
       os: machine.os as OsType,
       autoStopInterval: autoStop,

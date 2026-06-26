@@ -26,11 +26,14 @@ export function DesktopViewer({
   onStop,
   stopping,
   compact = false,
+  watchMachineId,
 }: {
   machine: ViewerMachine
   onStop?: () => void
   stopping?: boolean
   compact?: boolean
+  /** When set (teacher views), heartbeats so the student sees a "being watched" banner. */
+  watchMachineId?: string
 }) {
   const toast = useToast()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -86,6 +89,17 @@ export function DesktopViewer({
     document.addEventListener("fullscreenchange", onFsChange)
     return () => document.removeEventListener("fullscreenchange", onFsChange)
   }, [])
+
+  // Teacher "watching" heartbeat -> student sees a transparency banner.
+  useEffect(() => {
+    if (!watchMachineId) return
+    const ping = () => {
+      fetch(`/api/machines/${watchMachineId}/watch`, { method: "POST" }).catch(() => {})
+    }
+    ping()
+    const t = setInterval(ping, 15_000)
+    return () => clearInterval(t)
+  }, [watchMachineId])
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) containerRef.current?.requestFullscreen().catch(() => {})

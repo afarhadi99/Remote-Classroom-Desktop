@@ -66,6 +66,7 @@ interface SClassroom {
   defaultOs: OsType
   defaultDurationMin: number
   allowStudentBoot: boolean
+  idleTimeoutMin: number
   locked: boolean
 }
 interface PlanInfo {
@@ -92,6 +93,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [data, setData] = useState<ClassData | null>(null)
   const [os, setOs] = useState<OsType>("linux")
   const [duration, setDuration] = useState(60)
+  const [idleTimeout, setIdleTimeout] = useState(20)
   const [settingsTouched, setSettingsTouched] = useState(false)
   const [bootingAll, setBootingAll] = useState(false)
   const [stoppingAll, setStoppingAll] = useState(false)
@@ -114,6 +116,7 @@ export function ClassManager({ classId }: { classId: string }) {
       if (!initialized.current) {
         setOs(d.classroom.defaultOs)
         setDuration(Math.min(d.classroom.defaultDurationMin, d.plan.maxSessionMinutes))
+        setIdleTimeout(d.classroom.idleTimeoutMin)
         initialized.current = true
       }
     } catch (err) {
@@ -130,7 +133,10 @@ export function ClassManager({ classId }: { classId: string }) {
   async function saveSettings() {
     setSavingSettings(true)
     try {
-      await api(`/api/classes/${classId}`, { method: "PATCH", body: { defaultOs: os, defaultDurationMin: duration } })
+      await api(`/api/classes/${classId}`, {
+        method: "PATCH",
+        body: { defaultOs: os, defaultDurationMin: duration, idleTimeoutMin: idleTimeout },
+      })
       setSettingsTouched(false)
       toast.success("Settings saved")
       load()
@@ -182,7 +188,10 @@ export function ClassManager({ classId }: { classId: string }) {
   async function bootAll() {
     setBootingAll(true)
     try {
-      await api(`/api/classes/${classId}`, { method: "PATCH", body: { defaultOs: os, defaultDurationMin: duration } })
+      await api(`/api/classes/${classId}`, {
+        method: "PATCH",
+        body: { defaultOs: os, defaultDurationMin: duration, idleTimeoutMin: idleTimeout },
+      })
       const res = await api<{ booted: number }>(`/api/classes/${classId}/provision`, { body: { os, durationMin: duration } })
       toast.success(`Booting ${res.booted} desktop${res.booted === 1 ? "" : "s"}`, "This takes a few seconds per machine.")
       setSettingsTouched(false)
@@ -278,6 +287,7 @@ export function ClassManager({ classId }: { classId: string }) {
           </div>
           <DesktopViewer
             machine={selectedMachine}
+            watchMachineId={selectedMachine.id}
             onStop={() => stopMachine(selectedMachine.id, selectedMachine.studentId!)}
             stopping={busy[selectedMachine.studentId!]}
           />
@@ -403,6 +413,36 @@ export function ClassManager({ classId }: { classId: string }) {
                     )}
                   </p>
                 </div>
+              </div>
+              <div className="mt-4 space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Idle auto-stop
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { v: 10, label: "10 min" },
+                    { v: 20, label: "20 min" },
+                    { v: 30, label: "30 min" },
+                    { v: 0, label: "Never" },
+                  ].map((o) => (
+                    <button
+                      key={o.v}
+                      type="button"
+                      onClick={() => { setIdleTimeout(o.v); setSettingsTouched(true) }}
+                      className={cn(
+                        "cursor-pointer rounded-md border px-3 py-1.5 text-sm font-medium transition",
+                        idleTimeout === o.v
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-card text-foreground hover:border-foreground/20",
+                      )}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Stops a desktop after it&apos;s left idle, to save cost.
+                </p>
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button variant="ink" onClick={bootAll} disabled={bootingAll || students.length === 0}>

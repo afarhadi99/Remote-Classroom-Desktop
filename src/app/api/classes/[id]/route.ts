@@ -44,6 +44,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       defaultOs: classroom.defaultOs,
       defaultDurationMin: classroom.defaultDurationMin,
       allowStudentBoot: classroom.allowStudentBoot,
+      idleTimeoutMin: classroom.idleTimeoutMin,
       locked: !!classroom.lockedAt,
       createdAt: classroom.createdAt.toISOString(),
     },
@@ -79,6 +80,7 @@ const patchSchema = z.object({
   defaultOs: z.string().refine(isOsType, 'Invalid OS').optional(),
   defaultDurationMin: z.number().int().min(5).max(480).optional(),
   allowStudentBoot: z.boolean().optional(),
+  idleTimeoutMin: z.number().int().min(0).max(120).optional(),
 })
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {

@@ -87,6 +87,7 @@ export function MonitorWall({ classId }: { classId: string }) {
           </div>
           <div className="mx-auto w-full max-w-6xl">
             <DesktopViewer
+              watchMachineId={expanded.id}
               machine={{
                 id: expanded.id,
                 os: expanded.os,

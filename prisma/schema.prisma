@@ -40,6 +40,7 @@ model Classroom {
   defaultOs          String    @default("linux") // linux | windows
   defaultDurationMin Int       @default(60) // time limit applied to machines
   allowStudentBoot   Boolean   @default(true) // students can boot their own machine
+  idleTimeoutMin     Int       @default(20) // auto-stop a desktop after this many idle minutes (0 = never)
   // "Eyes on me" focus lock — when set, students see a full-screen lock over their desktop.
   lockedAt           DateTime?
   lockMessage        String?
@@ -113,6 +114,7 @@ model Machine {
   startedAt    DateTime?
   expiresAt    DateTime? // hard stop time = startedAt + durationMin
   stoppedAt    DateTime?
+  watchedUntil DateTime? // set by a teacher viewing/controlling; powers the student "being watched" banner
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
