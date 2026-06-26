@@ -4,6 +4,7 @@ import { apiError, getTeacher, json } from '@/lib/api'
 import { serializeMachine, stopClassroomMachines, monthlyUsage } from '@/lib/machines'
 import { isOsType } from '@/lib/os'
 import { getPlan, isUnlimited } from '@/lib/plans'
+import { estimateCostCents } from '@/lib/cost'
 
 async function ownedClass(teacherId: string, id: string) {
   return prisma.classroom.findFirst({ where: { id, teacherId } })
@@ -32,6 +33,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       include: { student: true },
     }),
   ])
+
+  const totalUsedMinutes = students.reduce((sum, s) => sum + monthlyUsage(s, plan).used, 0)
 
   return json({
     classroom: {
@@ -63,6 +66,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         usage: { used: usage.used, remaining: usage.remaining, unlimited: usage.unlimited },
       }
     }),
+    usageSummary: {
+      totalMinutes: totalUsedMinutes,
+      estimatedCostCents: estimateCostCents(totalUsedMinutes),
+    },
     machines: machines.map((m) => serializeMachine(m)),
   })
 }

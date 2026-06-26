@@ -4,6 +4,7 @@ import { prisma } from './prisma'
 import { createDesktop, destroyDesktop, getOrCreateVolume, daytonaErrorMessage } from './daytona'
 import type { OsType } from './os'
 import { getPlan, isUnlimited, currentUsageMonth, type Plan } from './plans'
+import { logEvent } from './events'
 
 export const MACHINE_STATUS = {
   PENDING: 'PENDING',
@@ -198,19 +199,32 @@ export async function provisionMachine(machineId: string): Promise<void> {
         errorMessage: null,
       },
     })
+    await logEvent({
+      classroomId: machine.classroomId,
+      studentId: machine.studentId,
+      type: 'running',
+      message: `${machine.student?.name ?? 'A student'}'s ${machine.os} desktop is ready`,
+    })
   } catch (err) {
+    const msg = daytonaErrorMessage(err)
     await prisma.machine
-      .update({
-        where: { id: machineId },
-        data: { status: 'ERROR', errorMessage: daytonaErrorMessage(err) },
-      })
+      .update({ where: { id: machineId }, data: { status: 'ERROR', errorMessage: msg } })
       .catch(() => {})
+    await logEvent({
+      classroomId: machine.classroomId,
+      studentId: machine.studentId,
+      type: 'error',
+      message: `Desktop for ${machine.student?.name ?? 'a student'} failed: ${msg}`,
+    })
   }
 }
 
 /** Stops + deletes the Daytona sandbox; the student's volume (files) persists. */
 export async function stopMachine(machineId: string): Promise<void> {
-  const machine = await prisma.machine.findUnique({ where: { id: machineId } })
+  const machine = await prisma.machine.findUnique({
+    where: { id: machineId },
+    include: { student: true },
+  })
   if (!machine) return
   await prisma.machine
     .update({ where: { id: machineId }, data: { status: 'STOPPING' } })
@@ -226,6 +240,12 @@ export async function stopMachine(machineId: string): Promise<void> {
       data: { status: 'STOPPED', stoppedAt, previewUrl: null },
     })
     .catch(() => {})
+  await logEvent({
+    classroomId: machine.classroomId,
+    studentId: machine.studentId,
+    type: 'stopped',
+    message: `${machine.student?.name ?? 'A student'}'s desktop was shut down`,
+  })
 }
 
 /** Stops every active machine in a classroom. */
@@ -246,6 +266,7 @@ export async function sweepExpiredMachines(): Promise<{ expired: number; stuck: 
 
   const expired = await prisma.machine.findMany({
     where: { status: 'RUNNING', expiresAt: { lte: now } },
+    include: { student: true },
   })
   for (const m of expired) {
     await prisma.machine
@@ -256,6 +277,12 @@ export async function sweepExpiredMachines(): Promise<{ expired: number; stuck: 
     await prisma.machine
       .update({ where: { id: m.id }, data: { stoppedAt: now } })
       .catch(() => {})
+    await logEvent({
+      classroomId: m.classroomId,
+      studentId: m.studentId,
+      type: 'expired',
+      message: `${m.student?.name ?? 'A student'}'s desktop hit its time limit and shut down`,
+    })
   }
 
   // Provisioning longer than 6 minutes is almost certainly wedged.

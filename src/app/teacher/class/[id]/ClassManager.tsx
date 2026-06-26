@@ -18,12 +18,14 @@ import {
   FolderOpen,
   Lock,
   Unlock,
+  ScrollText,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
 import { OsPicker, DurationPicker } from "@/components/Pickers"
 import { DesktopViewer } from "@/components/DesktopViewer"
 import { MonitorWall } from "./MonitorWall"
+import { ActivityLog } from "./ActivityLog"
 import { FilesModal } from "@/components/FilesModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
@@ -75,6 +77,7 @@ interface ClassData {
   plan: PlanInfo
   students: SStudent[]
   machines: SMachine[]
+  usageSummary: { totalMinutes: number; estimatedCostCents: number }
 }
 
 const ACTIVE = ["PROVISIONING", "RUNNING"]
@@ -90,7 +93,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [savingSettings, setSavingSettings] = useState(false)
   const [busy, setBusy] = useState<Record<string, boolean>>({})
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [view, setView] = useState<"students" | "wall">("students")
+  const [view, setView] = useState<"students" | "wall" | "activity">("students")
   const [filesMachine, setFilesMachine] = useState<{ id: string; name: string | null } | null>(null)
   const [lockBusy, setLockBusy] = useState(false)
   const initialized = useRef(false)
@@ -300,12 +303,23 @@ export function ClassManager({ classId }: { classId: string }) {
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setView("activity")}
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition",
+                  view === "activity" ? "bg-ink text-background" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <ScrollText className="size-3.5" /> Activity
+              </button>
               </div>
             </div>
           </header>
 
           {view === "wall" ? (
             <MonitorWall classId={classId} />
+          ) : view === "activity" ? (
+            <ActivityLog classId={classId} usage={data.usageSummary} />
           ) : (
           <>
           <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1.4fr]">

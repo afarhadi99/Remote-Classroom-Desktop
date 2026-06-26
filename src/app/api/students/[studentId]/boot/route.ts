@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
 import { bootMachineForStudent, serializeMachine } from '@/lib/machines'
 import { isOsType, type OsType } from '@/lib/os'
+import { logEvent } from '@/lib/events'
 
 const schema = z.object({
   os: z.string().refine(isOsType, 'Invalid OS').optional(),
@@ -37,5 +38,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
     durationMin,
   })
   if (!result.ok) return apiError(result.reason, 403)
+
+  await logEvent({
+    classroomId: student.classroomId,
+    studentId: student.id,
+    type: 'boot',
+    actorRole: 'teacher',
+    message: `Teacher started a ${os} desktop for ${student.name}`,
+  })
+
   return json({ ok: true, machine: serializeMachine(result.machine) })
 }

@@ -30,14 +30,26 @@ interface Account {
   hasBillingAccount: boolean
 }
 
+interface Usage {
+  totalMinutes: number
+  estimatedCostCents: number
+  classes: { id: string; name: string; studentCount: number; minutes: number; estimatedCostCents: number }[]
+}
+
 export function BillingPanel() {
   const toast = useToast()
   const [account, setAccount] = useState<Account | null>(null)
+  const [usage, setUsage] = useState<Usage | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
 
   const load = useCallback(async () => {
     try {
-      setAccount(await api<Account>("/api/teacher/account"))
+      const [acct, use] = await Promise.all([
+        api<Account>("/api/teacher/account"),
+        api<Usage>("/api/teacher/usage"),
+      ])
+      setAccount(acct)
+      setUsage(use)
     } catch (e) {
       toast.error("Could not load billing", (e as Error).message)
     }
@@ -123,6 +135,39 @@ export function BillingPanel() {
           Upgrades aren’t configured on this server yet (no Stripe key). The free tier is fully
           functional; add <code className="font-mono text-xs">STRIPE_SECRET_KEY</code> to enable Pro checkout.
         </p>
+      )}
+
+      {usage && (
+        <Card className="mt-6 gap-0 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-lg font-semibold text-foreground">This month&apos;s usage</p>
+            <p className="text-sm text-muted-foreground">
+              {usage.totalMinutes} desktop-min ·{" "}
+              <span className="font-medium text-foreground">
+                ~${(usage.estimatedCostCents / 100).toFixed(2)}
+              </span>{" "}
+              estimated
+            </p>
+          </div>
+          {usage.classes.length > 0 ? (
+            <div className="mt-4 divide-y divide-border">
+              {usage.classes.map((c) => (
+                <div key={c.id} className="flex items-center justify-between py-2 text-sm">
+                  <span className="text-foreground">{c.name}</span>
+                  <span className="text-muted-foreground">
+                    {c.studentCount} students · {c.minutes} min ·{" "}
+                    <span className="text-foreground">${(c.estimatedCostCents / 100).toFixed(2)}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">No desktop usage yet this month.</p>
+          )}
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            Cost is an estimate based on running desktop minutes; your actual Daytona bill is authoritative.
+          </p>
+        </Card>
       )}
 
       <h2 className="font-display mt-10 text-2xl text-foreground">Change plan</h2>

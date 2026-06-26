@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
 import { bootMachineForStudent } from '@/lib/machines'
 import { isOsType, type OsType } from '@/lib/os'
+import { logEvent } from '@/lib/events'
 
 const schema = z.object({
   os: z.string().refine(isOsType, 'Invalid OS').optional(),
@@ -37,6 +38,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   )
   const booted = results.filter((r) => r.ok).length
   const skipped = results.length - booted
+
+  await logEvent({
+    classroomId: id,
+    type: 'provision_all',
+    actorRole: 'teacher',
+    message: `Booted ${booted} ${os} desktop${booted === 1 ? '' : 's'} for the class (${durationMin} min)`,
+  })
 
   return json({ ok: true, booted, skipped, os, durationMin })
 }

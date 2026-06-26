@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { apiError, getStudent, json } from '@/lib/api'
 import { bootMachineForStudent, serializeMachine } from '@/lib/machines'
 import type { OsType } from '@/lib/os'
+import { logEvent } from '@/lib/events'
 
 // Student boots their own desktop using the class's configured OS + time limit.
 export async function POST() {
@@ -21,6 +22,14 @@ export async function POST() {
     durationMin: classroom.defaultDurationMin,
   })
   if (!result.ok) return apiError(result.studentReason, 403)
+
+  await logEvent({
+    classroomId: classroom.id,
+    studentId: student.id,
+    type: 'boot',
+    actorRole: 'student',
+    message: `${student.name} started a ${classroom.defaultOs} desktop`,
+  })
 
   return json({ ok: true, machine: serializeMachine(result.machine) })
 }

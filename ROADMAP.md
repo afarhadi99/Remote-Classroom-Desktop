@@ -11,13 +11,13 @@ Tracking the 20-feature roadmap. Implemented across `/loop` iterations.
 | 5 | Attendance from activity | Teaching | ☐ |
 | 6 | Take control / remote assist | Safety & Control | ☐ |
 | 7 | Guided internet allowlist/blocklist | Safety & Control | ☐ |
-| 8 | Activity & audit log | Safety & Control | ☐ |
+| 8 | Activity & audit log | Safety & Control | ☑ |
 | 9 | Locked-down exam mode | Safety & Control | ☐ |
 | 10 | Content safety screening + panic button | Safety & Control | ☐ |
 | 11 | Warm pool pre-provisioning | Scale & Ops | ☐ |
 | 12 | Scheduled class auto-boot | Scale & Ops | ☐ |
 | 13 | Idle reclaim with grace warning | Scale & Ops | ☐ |
-| 14 | Cost & usage analytics dashboard | Scale & Ops | ☐ |
+| 14 | Cost & usage analytics dashboard | Scale & Ops | ☑ |
 | 15 | Concurrency & spend guardrails | Scale & Ops | ☐ |
 | 16 | App catalog & golden-image snapshots | Platform | ☐ |
 | 17 | Group workstations | Collaboration | ☐ |

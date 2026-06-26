@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
+import { logEvent } from '@/lib/events'
 
 const schema = z.object({ locked: z.boolean(), message: z.string().trim().max(200).optional() })
 
@@ -23,6 +24,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       lockedAt: parsed.data.locked ? new Date() : null,
       lockMessage: parsed.data.locked ? parsed.data.message || null : null,
     },
+  })
+  await logEvent({
+    classroomId: id,
+    type: parsed.data.locked ? 'lock' : 'unlock',
+    actorRole: 'teacher',
+    message: parsed.data.locked ? 'Locked all screens (Eyes on me)' : 'Unlocked all screens',
   })
   return json({ ok: true, locked: !!updated.lockedAt })
 }

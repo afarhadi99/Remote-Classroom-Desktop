@@ -5,7 +5,7 @@ import type { Machine, Classroom, Student } from '@prisma/client'
 
 type SandboxFs = Sandbox['fs']
 import { prisma } from './prisma'
-import { getSession } from './auth'
+import { getSession, type SessionUser } from './auth'
 import { getDaytona, VOLUME_MOUNT_PATH } from './daytona'
 
 export interface FilesError {
@@ -21,7 +21,7 @@ type MachineWithRelations = Machine & { classroom: Classroom; student: Student |
  */
 export async function resolveMachineForSession(
   machineId: string,
-): Promise<{ machine: MachineWithRelations } | { error: FilesError }> {
+): Promise<{ machine: MachineWithRelations; session: SessionUser } | { error: FilesError }> {
   const session = await getSession()
   if (!session) return { error: { status: 401, message: 'Unauthorized' } }
 
@@ -36,7 +36,7 @@ export async function resolveMachineForSession(
     (session.role === 'student' && machine.studentId === session.id)
   if (!authorized) return { error: { status: 403, message: 'Forbidden' } }
 
-  return { machine }
+  return { machine, session }
 }
 
 /**

@@ -2,6 +2,7 @@ import { Readable } from 'node:stream'
 import { apiError } from '@/lib/api'
 import { resolveMachineForSession, safeJoin, getRunningSandboxFs } from '@/lib/files'
 import { daytonaErrorMessage } from '@/lib/daytona'
+import { logEvent } from '@/lib/events'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -42,6 +43,17 @@ export async function GET(req: Request) {
     }
 
     const name = info.name || fullPath.split('/').pop() || 'download'
+
+    const { machine, session } = resolved
+    const who = session.role === 'teacher' ? 'Teacher' : machine.student?.name ?? 'Student'
+    await logEvent({
+      classroomId: machine.classroomId,
+      studentId: machine.studentId,
+      type: 'download',
+      actorRole: session.role,
+      message: `${who} downloaded "${name}"${session.role === 'teacher' ? ` from ${machine.student?.name ?? 'a student'}'s files` : ''}`,
+    })
+
     // Stream rather than buffer: avoids loading the whole file into the shared server's
     // memory (the 200MB cap was previously bypassable when stat reported a falsy size).
     const stream = await fs.downloadFileStream(fullPath)

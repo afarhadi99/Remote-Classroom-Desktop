@@ -42,6 +42,22 @@ model Classroom {
   createdAt          DateTime  @default(now())
   students           Student[]
   machines           Machine[]
+  events             ClassEvent[]
+}
+
+// Append-only activity / audit trail for a class.
+model ClassEvent {
+  id          String    @id @default(cuid())
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  studentId   String?
+  student     Student?  @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  type        String // boot | running | stopped | expired | error | lock | unlock | download | provision_all | shutdown_all
+  message     String
+  actorRole   String? // teacher | student | system
+  createdAt   DateTime  @default(now())
+
+  @@index([classroomId, createdAt])
 }
 
 // Reusable class blueprint a teacher can apply when creating a class.
@@ -69,6 +85,7 @@ model Student {
   // Monthly desktop-time usage (for plan limits). usageMonth is "YYYY-MM".
   usageMonth   String?
   usageMinutes Int     @default(0)
+  events       ClassEvent[]
 
   @@unique([classroomId, name]) // one identity per name within a class
 }
