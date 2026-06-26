@@ -19,6 +19,8 @@ import {
   Lock,
   Unlock,
   ScrollText,
+  FileUp,
+  Inbox,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -27,6 +29,7 @@ import { DesktopViewer } from "@/components/DesktopViewer"
 import { MonitorWall } from "./MonitorWall"
 import { ActivityLog } from "./ActivityLog"
 import { FilesModal } from "@/components/FilesModal"
+import { CollectModal } from "@/components/CollectModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -96,6 +99,9 @@ export function ClassManager({ classId }: { classId: string }) {
   const [view, setView] = useState<"students" | "wall" | "activity">("students")
   const [filesMachine, setFilesMachine] = useState<{ id: string; name: string | null } | null>(null)
   const [lockBusy, setLockBusy] = useState(false)
+  const [handoutBusy, setHandoutBusy] = useState(false)
+  const [collectOpen, setCollectOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const initialized = useRef(false)
 
   const load = useCallback(async () => {
@@ -129,6 +135,31 @@ export function ClassManager({ classId }: { classId: string }) {
       toast.error("Could not save", (err as Error).message)
     } finally {
       setSavingSettings(false)
+    }
+  }
+
+  async function handleHandoutFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    setHandoutBusy(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch(`/api/classes/${classId}/handout`, { method: "POST", body: fd })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || "Hand-out failed")
+      toast.success(
+        `Sent "${d.fileName}" to ${d.delivered} desktop${d.delivered === 1 ? "" : "s"}`,
+        d.notRunning
+          ? `${d.notRunning} student${d.notRunning === 1 ? " isn't" : "s aren't"} running a desktop yet.`
+          : "Saved to their My-Files/Handouts folder.",
+      )
+      load()
+    } catch (err) {
+      toast.error("Could not hand out file", (err as Error).message)
+    } finally {
+      setHandoutBusy(false)
     }
   }
 
@@ -386,7 +417,18 @@ export function ClassManager({ classId }: { classId: string }) {
             </Card>
           </div>
 
-          <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Students</h2>
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Students</h2>
+            <div className="flex gap-2">
+              <input ref={fileInputRef} type="file" className="hidden" onChange={handleHandoutFile} />
+              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={handoutBusy}>
+                {handoutBusy ? <Spinner className="size-3.5" /> : <FileUp className="size-3.5" />} Hand out file
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setCollectOpen(true)}>
+                <Inbox className="size-3.5" /> Collect work
+              </Button>
+            </div>
+          </div>
           {students.length === 0 ? (
             <Card className="mt-3 items-center py-12 text-center text-muted-foreground">
               No students yet. Share the join code{" "}
@@ -419,6 +461,7 @@ export function ClassManager({ classId }: { classId: string }) {
         open={!!filesMachine}
         onOpenChange={(v) => !v && setFilesMachine(null)}
       />
+      <CollectModal classId={classId} open={collectOpen} onOpenChange={setCollectOpen} />
     </main>
   )
 }

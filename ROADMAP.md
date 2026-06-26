@@ -7,7 +7,7 @@ Tracking the 20-feature roadmap. Implemented across `/loop` iterations.
 | 1 | Eyes-On-Me screen lock / focus mode | Safety & Control | ☑ |
 | 2 | Lesson templates | Teaching | ☑ |
 | 3 | Broadcast & spotlight | Teaching | ☐ |
-| 4 | Handout drop & collect work | Teaching | ☐ |
+| 4 | Handout drop & collect work | Teaching | ☑ |
 | 5 | Attendance from activity | Teaching | ☐ |
 | 6 | Take control / remote assist | Safety & Control | ☐ |
 | 7 | Guided internet allowlist/blocklist | Safety & Control | ☐ |

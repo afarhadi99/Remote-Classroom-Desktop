@@ -12,6 +12,7 @@ export type EventType =
   | 'download'
   | 'provision_all'
   | 'shutdown_all'
+  | 'handout'
 
 export interface LogEventInput {
   classroomId: string
