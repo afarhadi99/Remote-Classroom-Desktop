@@ -16,6 +16,7 @@ export type EventType =
   | 'exam'
   | 'spotlight'
   | 'flag'
+  | 'prewarm'
 
 export interface LogEventInput {
   classroomId: string

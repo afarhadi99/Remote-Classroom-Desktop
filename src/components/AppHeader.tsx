@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { LogOut, CreditCard } from "lucide-react"
+import { LogOut, CreditCard, LayoutDashboard } from "lucide-react"
 import { Brand } from "@/components/brand"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -35,11 +35,18 @@ export function AppHeader({ name, role }: { name: string; role: "teacher" | "stu
             </div>
           </div>
           {role === "teacher" && (
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/teacher/billing">
-                <CreditCard className="size-3.5" /> <span className="hidden sm:inline">Plan</span>
-              </Link>
-            </Button>
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/teacher/admin">
+                  <LayoutDashboard className="size-3.5" /> <span className="hidden sm:inline">Console</span>
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/teacher/billing">
+                  <CreditCard className="size-3.5" /> <span className="hidden sm:inline">Plan</span>
+                </Link>
+              </Button>
+            </>
           )}
           <Button onClick={logout} variant="outline" size="sm">
             <LogOut className="size-3.5" /> <span className="hidden sm:inline">Sign out</span>

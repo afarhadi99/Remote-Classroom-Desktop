@@ -287,6 +287,47 @@ export async function stopMachine(machineId: string): Promise<void> {
   })
 }
 
+/**
+ * Pre-warms a class: creates (and waits for) each student's persistent Daytona volume up
+ * front, so their *first* desktop boot skips the slow volume-provisioning step.
+ *
+ * NOTE on scope: a generic pool of pre-booted *desktops* can't preserve per-student files,
+ * because Daytona binds a volume to a sandbox at create time — you can't attach a student's
+ * volume to an already-running pooled desktop. So the achievable warm-up here is the volume,
+ * which is the part that actually makes a cold first boot slow. Returns how many were warmed.
+ */
+export async function prewarmClassVolumes(
+  classroomId: string,
+): Promise<{ warmed: number; alreadyWarm: number; failed: number }> {
+  const students = await prisma.student.findMany({ where: { classroomId } })
+  const cold = students.filter((s) => !s.volumeId)
+  const alreadyWarm = students.length - cold.length
+  let warmed = 0
+  let failed = 0
+
+  // Bounded concurrency so we don't hammer the volume API.
+  const BATCH = 5
+  for (let i = 0; i < cold.length; i += BATCH) {
+    const batch = cold.slice(i, i + BATCH)
+    await Promise.all(
+      batch.map(async (s) => {
+        try {
+          const volName = s.volumeName || `rcd-vol-${s.id}`
+          const vol = await getOrCreateVolume(volName)
+          await prisma.student.update({
+            where: { id: s.id },
+            data: { volumeId: vol.id, volumeName: volName },
+          })
+          warmed++
+        } catch {
+          failed++
+        }
+      }),
+    )
+  }
+  return { warmed, alreadyWarm, failed }
+}
+
 /** Clears a class's broadcast spotlight if it points at the given (now-stopped) machine. */
 async function clearSpotlightIfMachine(classroomId: string, machineId: string): Promise<void> {
   await prisma.classroom

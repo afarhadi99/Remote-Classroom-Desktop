@@ -27,6 +27,7 @@ import {
   Hand,
   Boxes,
   Check,
+  Flame,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -119,6 +120,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [settingsTouched, setSettingsTouched] = useState(false)
   const [bootingAll, setBootingAll] = useState(false)
   const [stoppingAll, setStoppingAll] = useState(false)
+  const [prewarming, setPrewarming] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
   const [busy, setBusy] = useState<Record<string, boolean>>({})
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -263,6 +265,29 @@ export function ClassManager({ classId }: { classId: string }) {
       toast.error("Could not boot desktops", (err as Error).message)
     } finally {
       setBootingAll(false)
+    }
+  }
+
+  async function prewarm() {
+    setPrewarming(true)
+    try {
+      const r = await api<{ warmed: number; alreadyWarm: number; failed: number }>(
+        `/api/classes/${classId}/prewarm`,
+        { method: "POST" },
+      )
+      if (r.warmed > 0) {
+        toast.success(
+          `Pre-warmed ${r.warmed} desktop${r.warmed === 1 ? "" : "s"}`,
+          "Their files are ready, so the first boot will be quick.",
+        )
+      } else {
+        toast.info("Already warmed up", "Every student's files are provisioned.")
+      }
+      if (r.failed > 0) toast.error(`${r.failed} could not be pre-warmed`, "Try again in a moment.")
+    } catch (e) {
+      toast.error("Could not pre-warm", (e as Error).message)
+    } finally {
+      setPrewarming(false)
     }
   }
 
@@ -655,6 +680,9 @@ export function ClassManager({ classId }: { classId: string }) {
                 </Button>
                 <Button variant="outline" onClick={() => setScheduleOpen(true)}>
                   <CalendarClock className="size-4" /> Schedule
+                </Button>
+                <Button variant="outline" onClick={prewarm} disabled={prewarming || students.length === 0}>
+                  {prewarming ? <Spinner /> : <Flame className="size-4" />} Pre-warm
                 </Button>
                 {settingsTouched && (
                   <Button variant="ghost" onClick={saveSettings} disabled={savingSettings}>
