@@ -5,6 +5,7 @@ import { serializeMachine, stopClassroomMachines, monthlyUsage } from '@/lib/mac
 import { isOsType } from '@/lib/os'
 import { getPlan, isUnlimited } from '@/lib/plans'
 import { estimateCostCents } from '@/lib/cost'
+import { logEvent } from '@/lib/events'
 
 async function ownedClass(teacherId: string, id: string) {
   return prisma.classroom.findFirst({ where: { id, teacherId } })
@@ -45,6 +46,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       defaultDurationMin: classroom.defaultDurationMin,
       allowStudentBoot: classroom.allowStudentBoot,
       idleTimeoutMin: classroom.idleTimeoutMin,
+      netMode: classroom.netMode,
+      allowedDomains: classroom.allowedDomains,
+      examMode: classroom.examMode,
+      examMessage: classroom.examMessage,
       locked: !!classroom.lockedAt,
       createdAt: classroom.createdAt.toISOString(),
     },
@@ -81,6 +86,10 @@ const patchSchema = z.object({
   defaultDurationMin: z.number().int().min(5).max(480).optional(),
   allowStudentBoot: z.boolean().optional(),
   idleTimeoutMin: z.number().int().min(0).max(120).optional(),
+  netMode: z.enum(['open', 'allowlist', 'blocked']).optional(),
+  allowedDomains: z.string().max(2000).nullable().optional(),
+  examMode: z.boolean().optional(),
+  examMessage: z.string().max(200).nullable().optional(),
 })
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -104,6 +113,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const updated = await prisma.classroom.update({ where: { id }, data })
+
+  if (typeof data.examMode === 'boolean' && data.examMode !== classroom.examMode) {
+    await logEvent({
+      classroomId: id,
+      type: 'exam',
+      actorRole: 'teacher',
+      message: data.examMode ? 'Started exam mode' : 'Ended exam mode',
+    })
+  }
+
   return json({ ok: true, classroom: { id: updated.id, name: updated.name } })
 }
 

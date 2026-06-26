@@ -37,6 +37,8 @@ import { ScheduleModal } from "@/components/ScheduleModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { api, formatRemaining, formatDurationLabel } from "@/lib/client"
 import { initialsOf, cn } from "@/lib/utils"
@@ -69,6 +71,10 @@ interface SClassroom {
   defaultDurationMin: number
   allowStudentBoot: boolean
   idleTimeoutMin: number
+  netMode: "open" | "allowlist" | "blocked"
+  allowedDomains: string | null
+  examMode: boolean
+  examMessage: string | null
   locked: boolean
 }
 interface PlanInfo {
@@ -96,6 +102,10 @@ export function ClassManager({ classId }: { classId: string }) {
   const [os, setOs] = useState<OsType>("linux")
   const [duration, setDuration] = useState(60)
   const [idleTimeout, setIdleTimeout] = useState(20)
+  const [netMode, setNetMode] = useState<"open" | "allowlist" | "blocked">("open")
+  const [allowedDomains, setAllowedDomains] = useState("")
+  const [examMode, setExamMode] = useState(false)
+  const [examBusy, setExamBusy] = useState(false)
   const [settingsTouched, setSettingsTouched] = useState(false)
   const [bootingAll, setBootingAll] = useState(false)
   const [stoppingAll, setStoppingAll] = useState(false)
@@ -116,10 +126,13 @@ export function ClassManager({ classId }: { classId: string }) {
     try {
       const d = await api<ClassData>(`/api/classes/${classId}`)
       setData(d)
+      setExamMode(d.classroom.examMode)
       if (!initialized.current) {
         setOs(d.classroom.defaultOs)
         setDuration(Math.min(d.classroom.defaultDurationMin, d.plan.maxSessionMinutes))
         setIdleTimeout(d.classroom.idleTimeoutMin)
+        setNetMode(d.classroom.netMode)
+        setAllowedDomains(d.classroom.allowedDomains ?? "")
         initialized.current = true
       }
     } catch (err) {
@@ -138,7 +151,13 @@ export function ClassManager({ classId }: { classId: string }) {
     try {
       await api(`/api/classes/${classId}`, {
         method: "PATCH",
-        body: { defaultOs: os, defaultDurationMin: duration, idleTimeoutMin: idleTimeout },
+        body: {
+          defaultOs: os,
+          defaultDurationMin: duration,
+          idleTimeoutMin: idleTimeout,
+          netMode,
+          allowedDomains: allowedDomains.trim() || null,
+        },
       })
       setSettingsTouched(false)
       toast.success("Settings saved")
@@ -172,6 +191,22 @@ export function ClassManager({ classId }: { classId: string }) {
       toast.error("Could not hand out file", (err as Error).message)
     } finally {
       setHandoutBusy(false)
+    }
+  }
+
+  async function toggleExam(on: boolean) {
+    setExamBusy(true)
+    try {
+      await api(`/api/classes/${classId}`, { method: "PATCH", body: { examMode: on } })
+      toast[on ? "info" : "success"](
+        on ? "Exam mode on" : "Exam mode off",
+        on ? "Students see an exam banner and can't shut down their desktop." : "Students can use their desktops normally.",
+      )
+      load()
+    } catch (e) {
+      toast.error("Could not change exam mode", (e as Error).message)
+    } finally {
+      setExamBusy(false)
     }
   }
 
@@ -447,6 +482,52 @@ export function ClassManager({ classId }: { classId: string }) {
                   Stops a desktop after it&apos;s left idle, to save cost.
                 </p>
               </div>
+
+              <div className="mt-4 space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Internet</p>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { v: "open", label: "Open" },
+                    { v: "allowlist", label: "Allowlist only" },
+                    { v: "blocked", label: "No internet" },
+                  ] as const).map((o) => (
+                    <button
+                      key={o.v}
+                      type="button"
+                      onClick={() => { setNetMode(o.v); setSettingsTouched(true) }}
+                      className={cn(
+                        "cursor-pointer rounded-md border px-3 py-1.5 text-sm font-medium transition",
+                        netMode === o.v
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-card text-foreground hover:border-foreground/20",
+                      )}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                {netMode === "allowlist" && (
+                  <Input
+                    value={allowedDomains}
+                    onChange={(e) => { setAllowedDomains(e.target.value); setSettingsTouched(true) }}
+                    placeholder="khanacademy.org, wikipedia.org"
+                  />
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Enforced at the network layer on desktops booted after saving.
+                </p>
+              </div>
+
+              <label className="mt-4 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-secondary/40 p-3.5">
+                <span className="text-sm">
+                  <span className="font-medium text-foreground">Exam mode</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Students see an exam banner and can&apos;t shut down. Pair with a restricted internet policy.
+                  </span>
+                </span>
+                <Switch checked={examMode} onCheckedChange={toggleExam} disabled={examBusy} />
+              </label>
+
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button variant="ink" onClick={bootAll} disabled={bootingAll || students.length === 0}>
                   {bootingAll ? <Spinner /> : <Rocket className="size-4" />} Boot all desktops

@@ -209,11 +209,16 @@ export async function provisionMachine(machineId: string): Promise<void> {
     // Idle reclaim: Daytona auto-stops the sandbox after this many inactive minutes.
     const idle = machine.classroom?.idleTimeoutMin ?? 20
     const autoStop = idle > 0 ? Math.max(5, idle) : 0
+    // Internet policy (enforced at the Daytona network layer).
+    const netMode = machine.classroom?.netMode ?? 'open'
+    const allowed = machine.classroom?.allowedDomains?.trim()
     const handle = await createDesktop({
       os: machine.os as OsType,
       autoStopInterval: autoStop,
       volumeId,
       labels: { machineId },
+      networkBlockAll: netMode === 'blocked',
+      domainAllowList: netMode === 'allowlist' && allowed ? allowed : undefined,
     })
 
     const startedAt = new Date()

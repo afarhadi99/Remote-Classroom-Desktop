@@ -41,6 +41,12 @@ model Classroom {
   defaultDurationMin Int       @default(60) // time limit applied to machines
   allowStudentBoot   Boolean   @default(true) // students can boot their own machine
   idleTimeoutMin     Int       @default(20) // auto-stop a desktop after this many idle minutes (0 = never)
+  // Internet policy applied to newly-booted desktops (Daytona network rules).
+  netMode            String    @default("open") // open | allowlist | blocked
+  allowedDomains     String? // comma-separated, used when netMode = allowlist
+  // Exam mode: student banner + no self-shutdown; pair with a locked-down netMode.
+  examMode           Boolean   @default(false)
+  examMessage        String?
   // "Eyes on me" focus lock — when set, students see a full-screen lock over their desktop.
   lockedAt           DateTime?
   lockMessage        String?

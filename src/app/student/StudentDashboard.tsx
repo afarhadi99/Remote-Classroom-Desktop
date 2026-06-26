@@ -31,6 +31,8 @@ interface Payload {
     allowStudentBoot: boolean
     locked: boolean
     lockMessage: string | null
+    examMode: boolean
+    examMessage: string | null
   }
   usage: { remaining: number; unlimited: boolean; sessionCap: number }
   machine: SMachine | null
@@ -112,13 +114,26 @@ export function StudentDashboard() {
 
       {isRunning ? (
         <div className="mt-5 space-y-4">
+          {classroom.examMode && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+              <Lock className="size-4" />
+              <span>
+                <strong>Exam mode is on.</strong>{" "}
+                {classroom.examMessage || "Stay on this desktop until your teacher ends the exam."}
+              </span>
+            </div>
+          )}
           {beingWatched && (
             <div className="flex items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm text-sky-800">
               <Eye className="size-4" />
               Your teacher is viewing your screen.
             </div>
           )}
-          <DesktopViewer machine={machine!} onStop={stop} stopping={stopping} />
+          <DesktopViewer
+            machine={machine!}
+            onStop={classroom.examMode ? undefined : stop}
+            stopping={stopping}
+          />
           <Card className="flex-row items-center gap-3 p-4">
             <FolderOpen className="size-5 shrink-0 text-primary" />
             <p className="flex-1 text-sm text-foreground/80">

@@ -80,6 +80,10 @@ export interface CreateDesktopOptions {
   autoStopInterval: number
   volumeId?: string
   labels?: Record<string, string>
+  /** Block all network access (exam / no-internet mode). */
+  networkBlockAll?: boolean
+  /** Comma-separated allowlist of domains; everything else is blocked. */
+  domainAllowList?: string
 }
 
 export interface DesktopHandle {
@@ -113,6 +117,8 @@ export async function createDesktop(opts: CreateDesktopOptions): Promise<Desktop
       autoDeleteInterval: 0, // delete as soon as it stops -> no lingering compute; volume persists
       volumes,
       labels: { app: 'remote-classroom', os: opts.os, ...(opts.labels ?? {}) },
+      ...(opts.networkBlockAll ? { networkBlockAll: true } : {}),
+      ...(opts.domainAllowList ? { domainAllowList: opts.domainAllowList } : {}),
     },
     { timeout: 0 },
   )
