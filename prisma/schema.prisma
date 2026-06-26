@@ -17,6 +17,7 @@ model Teacher {
   password  String // bcrypt hash
   createdAt DateTime    @default(now())
   classes   Classroom[]
+  templates ClassTemplate[]
 
   // Billing / plan
   plan                 String    @default("free") // free | pro
@@ -35,9 +36,24 @@ model Classroom {
   defaultOs          String    @default("linux") // linux | windows
   defaultDurationMin Int       @default(60) // time limit applied to machines
   allowStudentBoot   Boolean   @default(true) // students can boot their own machine
+  // "Eyes on me" focus lock — when set, students see a full-screen lock over their desktop.
+  lockedAt           DateTime?
+  lockMessage        String?
   createdAt          DateTime  @default(now())
   students           Student[]
   machines           Machine[]
+}
+
+// Reusable class blueprint a teacher can apply when creating a class.
+model ClassTemplate {
+  id               String   @id @default(cuid())
+  teacherId        String
+  teacher          Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  name             String
+  os               String   @default("linux")
+  durationMin      Int      @default(45)
+  allowStudentBoot Boolean  @default(true)
+  createdAt        DateTime @default(now())
 }
 
 model Student {

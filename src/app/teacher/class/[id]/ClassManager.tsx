@@ -16,6 +16,8 @@ import {
   LayoutGrid,
   List,
   FolderOpen,
+  Lock,
+  Unlock,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -57,6 +59,7 @@ interface SClassroom {
   defaultOs: OsType
   defaultDurationMin: number
   allowStudentBoot: boolean
+  locked: boolean
 }
 interface PlanInfo {
   id: "free" | "pro"
@@ -89,6 +92,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [view, setView] = useState<"students" | "wall">("students")
   const [filesMachine, setFilesMachine] = useState<{ id: string; name: string | null } | null>(null)
+  const [lockBusy, setLockBusy] = useState(false)
   const initialized = useRef(false)
 
   const load = useCallback(async () => {
@@ -122,6 +126,19 @@ export function ClassManager({ classId }: { classId: string }) {
       toast.error("Could not save", (err as Error).message)
     } finally {
       setSavingSettings(false)
+    }
+  }
+
+  async function toggleLock(locked: boolean) {
+    setLockBusy(true)
+    try {
+      await api(`/api/classes/${classId}/lock`, { method: "POST", body: { locked } })
+      toast[locked ? "info" : "success"](locked ? "Screens locked" : "Screens unlocked", locked ? "Students see an “Eyes on me” overlay." : "Students can use their desktops again.")
+      load()
+    } catch (e) {
+      toast.error("Could not change lock", (e as Error).message)
+    } finally {
+      setLockBusy(false)
     }
   }
 
@@ -243,7 +260,23 @@ export function ClassManager({ classId }: { classId: string }) {
                 </span>
               </p>
             </div>
-            <div className="inline-flex rounded-lg border border-border bg-card p-0.5 text-sm">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={classroom.locked ? "ink" : "outline"}
+                size="sm"
+                onClick={() => toggleLock(!classroom.locked)}
+                disabled={lockBusy}
+              >
+                {lockBusy ? (
+                  <Spinner className="size-3.5" />
+                ) : classroom.locked ? (
+                  <Unlock className="size-3.5" />
+                ) : (
+                  <Lock className="size-3.5" />
+                )}
+                {classroom.locked ? "Unlock screens" : "Lock screens"}
+              </Button>
+              <div className="inline-flex rounded-lg border border-border bg-card p-0.5 text-sm">
               <button
                 onClick={() => setView("students")}
                 className={cn(
@@ -267,6 +300,7 @@ export function ClassManager({ classId }: { classId: string }) {
                   </span>
                 )}
               </button>
+              </div>
             </div>
           </header>
 

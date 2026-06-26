@@ -40,21 +40,32 @@ interface Account {
   classCount: number
 }
 
+interface Template {
+  id: string
+  name: string
+  os: OsType
+  durationMin: number
+  allowStudentBoot: boolean
+}
+
 export function TeacherDashboard({ teacherName }: { teacherName: string }) {
   const toast = useToast()
   const [classes, setClasses] = useState<ClassSummary[]>([])
   const [account, setAccount] = useState<Account | null>(null)
+  const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
 
   async function load() {
     try {
-      const [{ classes }, acct] = await Promise.all([
+      const [{ classes }, acct, { templates }] = await Promise.all([
         api<{ classes: ClassSummary[] }>("/api/classes"),
         api<Account>("/api/teacher/account"),
+        api<{ templates: Template[] }>("/api/templates"),
       ])
       setClasses(classes)
       setAccount(acct)
+      setTemplates(templates)
     } catch (err) {
       toast.error("Could not load classes", (err as Error).message)
     } finally {
@@ -122,6 +133,7 @@ export function TeacherDashboard({ teacherName }: { teacherName: string }) {
         open={showCreate}
         onOpenChange={setShowCreate}
         maxMinutes={plan?.maxSessionMinutes ?? 45}
+        templates={templates}
         onCreated={load}
       />
     </main>
@@ -221,18 +233,28 @@ function CreateClassModal({
   onOpenChange,
   onCreated,
   maxMinutes,
+  templates,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   onCreated: () => void
   maxMinutes: number
+  templates: Template[]
 }) {
   const toast = useToast()
   const [name, setName] = useState("")
   const [os, setOs] = useState<OsType>("linux")
   const [duration, setDuration] = useState(Math.min(60, maxMinutes))
   const [allowStudentBoot, setAllowStudentBoot] = useState(true)
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  function applyTemplate(t: Template) {
+    setOs(t.os)
+    setDuration(Math.min(t.durationMin, maxMinutes))
+    setAllowStudentBoot(t.allowStudentBoot)
+    if (!name) setName(t.name)
+  }
 
   async function create(e: React.FormEvent) {
     e.preventDefault()
@@ -241,9 +263,15 @@ function CreateClassModal({
       await api("/api/classes", {
         body: { name, defaultOs: os, defaultDurationMin: duration, allowStudentBoot },
       })
+      if (saveAsTemplate) {
+        await api("/api/templates", {
+          body: { name, os, durationMin: duration, allowStudentBoot },
+        }).catch(() => {})
+      }
       toast.success("Class created", "Share the join code with your students.")
       onOpenChange(false)
       setName("")
+      setSaveAsTemplate(false)
       onCreated()
     } catch (err) {
       toast.error("Could not create class", (err as Error).message)
@@ -261,6 +289,24 @@ function CreateClassModal({
         </DialogHeader>
 
         <form onSubmit={create} className="space-y-5">
+          {templates.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Start from a template</Label>
+              <div className="flex flex-wrap gap-2">
+                {templates.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => applyTemplate(t)}
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-3 py-1 text-xs font-medium text-foreground transition hover:border-foreground/20"
+                  >
+                    <OsIcon os={t.os} className="size-3.5" /> {t.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label htmlFor="cname">Class name</Label>
             <Input
@@ -294,6 +340,11 @@ function CreateClassModal({
               <span className="block text-xs text-muted-foreground">If off, only you can start their machines.</span>
             </span>
             <Switch checked={allowStudentBoot} onCheckedChange={setAllowStudentBoot} />
+          </label>
+
+          <label className="flex cursor-pointer items-center gap-2.5 text-sm text-muted-foreground">
+            <Switch checked={saveAsTemplate} onCheckedChange={setSaveAsTemplate} />
+            Save these settings as a reusable template
           </label>
 
           <Button type="submit" variant="ink" size="lg" className="w-full" disabled={saving || !name}>

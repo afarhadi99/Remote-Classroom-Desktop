@@ -32,6 +32,8 @@ export async function GET() {
       defaultOs: classroom.defaultOs,
       defaultDurationMin: classroom.defaultDurationMin,
       allowStudentBoot: classroom.allowStudentBoot,
+      locked: !!classroom.lockedAt,
+      lockMessage: classroom.lockMessage,
     },
     // No pricing is ever exposed to students — just their remaining time.
     usage: {

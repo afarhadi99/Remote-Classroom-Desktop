@@ -41,6 +41,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       defaultOs: classroom.defaultOs,
       defaultDurationMin: classroom.defaultDurationMin,
       allowStudentBoot: classroom.allowStudentBoot,
+      locked: !!classroom.lockedAt,
       createdAt: classroom.createdAt.toISOString(),
     },
     plan: {

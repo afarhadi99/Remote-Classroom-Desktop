@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen } from "lucide-react"
+import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { DesktopViewer } from "@/components/DesktopViewer"
 import { FilesModal } from "@/components/FilesModal"
@@ -23,7 +23,15 @@ interface SMachine {
 }
 interface Payload {
   student: { id: string; name: string; hasFiles: boolean }
-  classroom: { id: string; name: string; defaultOs: OsType; defaultDurationMin: number; allowStudentBoot: boolean }
+  classroom: {
+    id: string
+    name: string
+    defaultOs: OsType
+    defaultDurationMin: number
+    allowStudentBoot: boolean
+    locked: boolean
+    lockMessage: string | null
+  }
   usage: { remaining: number; unlimited: boolean; sessionCap: number }
   machine: SMachine | null
 }
@@ -90,6 +98,7 @@ export function StudentDashboard() {
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">
+      {classroom.locked && <LockOverlay message={classroom.lockMessage} />}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wider text-muted-foreground">{classroom.name}</p>
@@ -145,6 +154,23 @@ export function StudentDashboard() {
         onOpenChange={setFilesOpen}
       />
     </main>
+  )
+}
+
+function LockOverlay({ message }: { message: string | null }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-ink/95 px-6 text-center backdrop-blur-sm">
+      <div className="grid size-16 place-items-center rounded-2xl bg-white/10 text-background">
+        <Lock className="size-8" />
+      </div>
+      <h2 className="font-display mt-6 text-3xl text-background">Eyes on me</h2>
+      <p className="mt-2 max-w-md text-background/70">
+        {message || "Your teacher has paused the class. Your desktop is safe and will be back in a moment."}
+      </p>
+      <p className="mt-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-background/60">
+        <span className="size-1.5 animate-pulse rounded-full bg-amber-400" /> Screen locked by teacher
+      </p>
+    </div>
   )
 }
 
