@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { DesktopViewer } from "@/components/DesktopViewer"
+import { FilesModal } from "@/components/FilesModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -32,6 +33,7 @@ export function StudentDashboard() {
   const [data, setData] = useState<Payload | null>(null)
   const [booting, setBooting] = useState(false)
   const [stopping, setStopping] = useState(false)
+  const [filesOpen, setFilesOpen] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -103,11 +105,14 @@ export function StudentDashboard() {
           <DesktopViewer machine={machine!} onStop={stop} stopping={stopping} />
           <Card className="flex-row items-center gap-3 p-4">
             <FolderOpen className="size-5 shrink-0 text-primary" />
-            <p className="text-sm text-foreground/80">
+            <p className="flex-1 text-sm text-foreground/80">
               Save anything you want to keep in the <strong className="text-foreground">My-Files</strong> folder on
               the desktop. It stays safe even after this machine shuts down — it&apos;ll be there next time you log
               in.
             </p>
+            <Button variant="outline" size="sm" onClick={() => setFilesOpen(true)}>
+              <FolderOpen className="size-3.5" /> Browse my files
+            </Button>
           </Card>
         </div>
       ) : isBooting ? (
@@ -133,6 +138,12 @@ export function StudentDashboard() {
           onBoot={boot}
         />
       )}
+
+      <FilesModal
+        machineId={machine?.id ?? null}
+        open={filesOpen}
+        onOpenChange={setFilesOpen}
+      />
     </main>
   )
 }

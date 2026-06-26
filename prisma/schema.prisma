@@ -68,7 +68,8 @@ model Machine {
   os           String    @default("linux") // linux | windows
   status       String    @default("PENDING") // PENDING, PROVISIONING, RUNNING, STOPPING, STOPPED, EXPIRED, ERROR
   sandboxId    String? // Daytona sandbox id
-  previewUrl   String? // full noVNC url to embed
+  previewUrl   String? // same-origin proxied noVNC url to embed
+  previewToken String? // Daytona private-preview token (injected by the proxy)
   errorMessage String?
 
   durationMin  Int       @default(60) // time limit in minutes

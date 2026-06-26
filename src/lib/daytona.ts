@@ -1,6 +1,6 @@
 import 'server-only'
 import { Daytona, type Sandbox } from '@daytonaio/sdk'
-import type { OsType } from './os'
+import { type OsType, MY_FILES_PATH } from './os'
 
 // Snapshot/image per OS. Linux uses the computer-use desktop snapshot (xfce4 + noVNC).
 // Windows uses the gated "windows" class snapshot (must be enabled on the org).
@@ -17,10 +17,26 @@ const OS_VNC_PORT: Record<OsType, number> = {
 
 // Where each student's persistent volume is mounted. Placing it on the Desktop
 // makes a "My-Files" folder appear on the desktop that survives machine restarts.
-export const VOLUME_MOUNT_PATH = '/home/daytona/Desktop/My-Files'
+export const VOLUME_MOUNT_PATH = MY_FILES_PATH
 
 // Same-origin path prefix handled by the reverse proxy in server.mjs.
 const DESKTOP_PROXY_PREFIX = '/desktop/'
+
+/**
+ * Given an interactive desktop preview URL (/desktop/<host>/vnc.html?...), builds a
+ * VIEW-ONLY, auto-scaled noVNC URL suitable for a monitoring-wall thumbnail. Returns
+ * null if the host can't be parsed. Linux/noVNC only.
+ */
+export function viewOnlyUrlFromPreview(previewUrl: string): string | null {
+  const match = previewUrl.match(/^\/desktop\/([^/]+)\//)
+  if (!match) return null
+  const host = match[1]
+  const wsPath = `${DESKTOP_PROXY_PREFIX.slice(1)}${host}/websockify`
+  const q =
+    'autoconnect=true&reconnect=true&reconnect_delay=2000&view_only=true&resize=scale' +
+    '&quality=3&compression=9&show_dot=false&bell=off'
+  return `${DESKTOP_PROXY_PREFIX}${host}/vnc.html?${q}&path=${encodeURIComponent(wsPath)}`
+}
 
 let client: Daytona | null = null
 
@@ -69,11 +85,18 @@ export interface CreateDesktopOptions {
 export interface DesktopHandle {
   sandboxId: string
   previewUrl: string
+  previewToken: string | null
 }
 
 /**
  * Provisions a cloud desktop sandbox, starts the GUI, and returns a
  * browser-loadable preview URL. Throws DaytonaError on failure (e.g. Windows gated).
+ *
+ * The desktop is reachable ONLY through our authenticated same-origin proxy (server.mjs),
+ * which requires a valid session authorized for this specific machine. The sandbox preview
+ * is public at the Daytona edge (private previews require an interactive Daytona/Auth0
+ * login that students don't have), but the sandbox host is only ever disclosed in-app to
+ * the owning student or their teacher, and our proxy enforces that on every request.
  */
 export async function createDesktop(opts: CreateDesktopOptions): Promise<DesktopHandle> {
   const daytona = getDaytona()
@@ -119,7 +142,7 @@ export async function createDesktop(opts: CreateDesktopOptions): Promise<Desktop
     previewUrl = `${base}/`
   }
 
-  return { sandboxId: sandbox.id, previewUrl }
+  return { sandboxId: sandbox.id, previewUrl, previewToken: preview.token ?? null }
 }
 
 /** Stops and deletes a sandbox. Safe to call if it's already gone. */

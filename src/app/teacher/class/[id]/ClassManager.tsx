@@ -13,11 +13,16 @@ import {
   Monitor,
   AlertTriangle,
   Sparkles,
+  LayoutGrid,
+  List,
+  FolderOpen,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
 import { OsPicker, DurationPicker } from "@/components/Pickers"
 import { DesktopViewer } from "@/components/DesktopViewer"
+import { MonitorWall } from "./MonitorWall"
+import { FilesModal } from "@/components/FilesModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -82,6 +87,8 @@ export function ClassManager({ classId }: { classId: string }) {
   const [savingSettings, setSavingSettings] = useState(false)
   const [busy, setBusy] = useState<Record<string, boolean>>({})
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [view, setView] = useState<"students" | "wall">("students")
+  const [filesMachine, setFilesMachine] = useState<{ id: string; name: string | null } | null>(null)
   const initialized = useRef(false)
 
   const load = useCallback(async () => {
@@ -200,9 +207,20 @@ export function ClassManager({ classId }: { classId: string }) {
             <h2 className="font-display text-2xl text-foreground">
               Watching {selectedMachine.studentName}&apos;s desktop
             </h2>
-            <Button variant="outline" size="sm" onClick={() => setSelectedId(null)}>
-              <ArrowLeft className="size-3.5" /> Back to class
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setFilesMachine({ id: selectedMachine.id, name: selectedMachine.studentName })
+                }
+              >
+                <FolderOpen className="size-3.5" /> Browse files
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setSelectedId(null)}>
+                <ArrowLeft className="size-3.5" /> Back to class
+              </Button>
+            </div>
           </div>
           <DesktopViewer
             machine={selectedMachine}
@@ -212,19 +230,50 @@ export function ClassManager({ classId }: { classId: string }) {
         </div>
       ) : (
         <>
-          <header className="mt-4">
-            <h1 className="font-display text-3xl text-foreground">{classroom.name}</h1>
-            <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <Users className="size-4" /> {students.length} student{students.length === 1 ? "" : "s"}
-                {studentCapLabel && <span className="text-muted-foreground/70">· {studentCapLabel}</span>}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Monitor className="size-4" /> {activeCount} live
-              </span>
-            </p>
+          <header className="mt-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h1 className="font-display text-3xl text-foreground">{classroom.name}</h1>
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <Users className="size-4" /> {students.length} student{students.length === 1 ? "" : "s"}
+                  {studentCapLabel && <span className="text-muted-foreground/70">· {studentCapLabel}</span>}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Monitor className="size-4" /> {activeCount} live
+                </span>
+              </p>
+            </div>
+            <div className="inline-flex rounded-lg border border-border bg-card p-0.5 text-sm">
+              <button
+                onClick={() => setView("students")}
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition",
+                  view === "students" ? "bg-ink text-background" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <List className="size-3.5" /> Students
+              </button>
+              <button
+                onClick={() => setView("wall")}
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition",
+                  view === "wall" ? "bg-ink text-background" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <LayoutGrid className="size-3.5" /> Monitor wall
+                {activeCount > 0 && (
+                  <span className="ml-0.5 rounded-full bg-emerald-500/15 px-1.5 text-[11px] font-semibold text-emerald-700">
+                    {activeCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </header>
 
+          {view === "wall" ? (
+            <MonitorWall classId={classId} />
+          ) : (
+          <>
           <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1.4fr]">
             {/* join code */}
             <Card className="justify-between gap-0 p-6">
@@ -306,12 +355,22 @@ export function ClassManager({ classId }: { classId: string }) {
                   onBoot={() => bootStudent(s.id)}
                   onStop={(mid) => stopMachine(mid, s.id)}
                   onOpen={(mid) => setSelectedId(mid)}
+                  onFiles={(mid) => setFilesMachine({ id: mid, name: s.name })}
                 />
               ))}
             </div>
           )}
+          </>
+          )}
         </>
       )}
+
+      <FilesModal
+        machineId={filesMachine?.id ?? null}
+        studentName={filesMachine?.name}
+        open={!!filesMachine}
+        onOpenChange={(v) => !v && setFilesMachine(null)}
+      />
     </main>
   )
 }
@@ -323,6 +382,7 @@ function StudentCard({
   onBoot,
   onStop,
   onOpen,
+  onFiles,
 }: {
   student: SStudent
   monthlyUnlimited: boolean
@@ -330,6 +390,7 @@ function StudentCard({
   onBoot: () => void
   onStop: (machineId: string) => void
   onOpen: (machineId: string) => void
+  onFiles: (machineId: string) => void
 }) {
   const m = student.machine
   const isActive = m && ACTIVE.includes(m.status)
@@ -379,6 +440,9 @@ function StudentCard({
           <>
             <Button variant="ink" size="sm" className="flex-1" onClick={() => onOpen(m.id)}>
               <Monitor className="size-3.5" /> Watch
+            </Button>
+            <Button variant="outline" size="icon-sm" onClick={() => onFiles(m.id)} title="Browse files">
+              <FolderOpen className="size-3.5" />
             </Button>
             <Button variant="outline" size="icon-sm" className="text-destructive hover:bg-destructive/10" onClick={() => onStop(m.id)} disabled={busy}>
               {busy ? <Spinner className="size-3.5" /> : <Power className="size-3.5" />}

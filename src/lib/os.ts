@@ -38,3 +38,7 @@ export const OS_BY_ID: Record<OsType, OsMeta> = Object.fromEntries(
 export function isOsType(v: unknown): v is OsType {
   return v === 'linux' || v === 'windows'
 }
+
+// Where each student's persistent volume is mounted (client-safe copy of the
+// server constant in daytona.ts). Used by the file browser UI.
+export const MY_FILES_PATH = '/home/daytona/Desktop/My-Files'

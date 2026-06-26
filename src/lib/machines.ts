@@ -192,6 +192,7 @@ export async function provisionMachine(machineId: string): Promise<void> {
         status: 'RUNNING',
         sandboxId: handle.sandboxId,
         previewUrl: handle.previewUrl,
+        previewToken: handle.previewToken,
         startedAt,
         expiresAt,
         errorMessage: null,
