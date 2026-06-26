@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, CreditCard, Sparkles, Layers, Clock, Users, Loader2 } from "lucide-react"
+import { ArrowLeft, CreditCard, Sparkles, Layers, Clock, Users, Loader2, ShieldCheck } from "lucide-react"
 import { Spinner } from "@/components/brand"
 import { PricingCards } from "@/components/Pricing"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { api, formatDurationLabel } from "@/lib/client"
 
 interface Account {
@@ -28,6 +30,7 @@ interface Account {
   classCount: number
   billingEnabled: boolean
   hasBillingAccount: boolean
+  guardrails: { maxConcurrentDesktops: number | null; monthlySpendCapCents: number | null }
 }
 
 interface Usage {
@@ -41,6 +44,9 @@ export function BillingPanel() {
   const [account, setAccount] = useState<Account | null>(null)
   const [usage, setUsage] = useState<Usage | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
+  const [maxConc, setMaxConc] = useState("")
+  const [spendCap, setSpendCap] = useState("")
+  const [savingGuard, setSavingGuard] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -50,10 +56,35 @@ export function BillingPanel() {
       ])
       setAccount(acct)
       setUsage(use)
+      setMaxConc(acct.guardrails.maxConcurrentDesktops?.toString() ?? "")
+      setSpendCap(
+        acct.guardrails.monthlySpendCapCents != null
+          ? (acct.guardrails.monthlySpendCapCents / 100).toString()
+          : "",
+      )
     } catch (e) {
       toast.error("Could not load billing", (e as Error).message)
     }
   }, [toast])
+
+  async function saveGuardrails() {
+    setSavingGuard(true)
+    try {
+      const maxConcurrentDesktops = maxConc.trim() === "" ? null : Math.max(1, parseInt(maxConc, 10) || 1)
+      const dollars = spendCap.trim() === "" ? null : Math.max(0, parseFloat(spendCap) || 0)
+      const monthlySpendCapCents = dollars == null ? null : Math.round(dollars * 100)
+      await api("/api/teacher/account", {
+        method: "PATCH",
+        body: { maxConcurrentDesktops, monthlySpendCapCents },
+      })
+      toast.success("Guardrails saved")
+      load()
+    } catch (e) {
+      toast.error("Could not save guardrails", (e as Error).message)
+    } finally {
+      setSavingGuard(false)
+    }
+  }
 
   useEffect(() => {
     load()
@@ -169,6 +200,43 @@ export function BillingPanel() {
           </p>
         </Card>
       )}
+
+      <Card className="mt-6 gap-0 p-6">
+        <p className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <ShieldCheck className="size-5 text-primary" /> Cost guardrails
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Hard limits enforced when desktops boot, across all your classes. Leave blank for no limit.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="maxc">Max desktops running at once</Label>
+            <Input
+              id="maxc"
+              type="number"
+              min={1}
+              value={maxConc}
+              onChange={(e) => setMaxConc(e.target.value)}
+              placeholder="No limit"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cap">Monthly spend cap (USD)</Label>
+            <Input
+              id="cap"
+              type="number"
+              min={0}
+              step="1"
+              value={spendCap}
+              onChange={(e) => setSpendCap(e.target.value)}
+              placeholder="No limit"
+            />
+          </div>
+        </div>
+        <Button variant="ink" className="mt-4 w-fit" onClick={saveGuardrails} disabled={savingGuard}>
+          {savingGuard ? <Spinner /> : <ShieldCheck className="size-4" />} Save guardrails
+        </Button>
+      </Card>
 
       <h2 className="font-display mt-10 text-2xl text-foreground">Change plan</h2>
       <div className="mt-4">

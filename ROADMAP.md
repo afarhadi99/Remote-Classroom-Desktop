@@ -8,7 +8,7 @@ Tracking the 20-feature roadmap. Implemented across `/loop` iterations.
 | 2 | Lesson templates | Teaching | ☑ |
 | 3 | Broadcast & spotlight | Teaching | ☐ |
 | 4 | Handout drop & collect work | Teaching | ☑ |
-| 5 | Attendance from activity | Teaching | ☐ |
+| 5 | Attendance from activity | Teaching | ☑ |
 | 6 | Take control / remote assist | Safety & Control | ☐ |
 | 7 | Guided internet allowlist/blocklist | Safety & Control | ☐ |
 | 8 | Activity & audit log | Safety & Control | ☑ |
@@ -18,7 +18,7 @@ Tracking the 20-feature roadmap. Implemented across `/loop` iterations.
 | 12 | Scheduled class auto-boot | Scale & Ops | ☐ |
 | 13 | Idle reclaim with grace warning | Scale & Ops | ☐ |
 | 14 | Cost & usage analytics dashboard | Scale & Ops | ☑ |
-| 15 | Concurrency & spend guardrails | Scale & Ops | ☐ |
+| 15 | Concurrency & spend guardrails | Scale & Ops | ☑ |
 | 16 | App catalog & golden-image snapshots | Platform | ☐ |
 | 17 | Group workstations | Collaboration | ☐ |
 | 18 | Roster sync (Google Classroom & Clever) | Admin & Billing | ☐ |

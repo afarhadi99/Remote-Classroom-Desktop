@@ -5,6 +5,7 @@ import { createDesktop, destroyDesktop, getOrCreateVolume, daytonaErrorMessage }
 import type { OsType } from './os'
 import { getPlan, isUnlimited, currentUsageMonth, type Plan } from './plans'
 import { logEvent } from './events'
+import { estimateCostCents } from './cost'
 
 export const MACHINE_STATUS = {
   PENDING: 'PENDING',
@@ -126,7 +127,8 @@ export async function bootMachineForStudent(params: {
     return { ok: false, reason: 'Student not found.', studentReason: 'Something went wrong.' }
   }
 
-  const plan = getPlan(student.classroom.teacher.plan)
+  const teacher = student.classroom.teacher
+  const plan = getPlan(teacher.plan)
   const usage = monthlyUsage(student, plan)
   if (usage.remaining <= 0) {
     return {
@@ -134,6 +136,34 @@ export async function bootMachineForStudent(params: {
       reason: `${student.name} has used all ${plan.monthlyMinutesPerStudent} desktop minutes for this month. Upgrade to Pro for unlimited student minutes.`,
       studentReason:
         "You've used all of your desktop time for this month. Ask your teacher if you need more.",
+    }
+  }
+
+  // Cost guardrails (teacher-configured caps across all their classes).
+  if (teacher.maxConcurrentDesktops != null) {
+    const active = await prisma.machine.count({
+      where: { classroom: { teacherId: teacher.id }, status: { in: ACTIVE_STATUSES as unknown as string[] } },
+    })
+    if (active >= teacher.maxConcurrentDesktops) {
+      return {
+        ok: false,
+        reason: `You've hit your concurrency limit of ${teacher.maxConcurrentDesktops} running desktops. Stop one or raise the limit under Plan & billing.`,
+        studentReason: 'Your class has hit its limit of running desktops. Ask your teacher.',
+      }
+    }
+  }
+  if (teacher.monthlySpendCapCents != null) {
+    const agg = await prisma.student.aggregate({
+      where: { classroom: { teacherId: teacher.id }, usageMonth: currentUsageMonth() },
+      _sum: { usageMinutes: true },
+    })
+    const spentCents = estimateCostCents(agg._sum.usageMinutes ?? 0)
+    if (spentCents >= teacher.monthlySpendCapCents) {
+      return {
+        ok: false,
+        reason: `You've reached your monthly spend cap (~$${(teacher.monthlySpendCapCents / 100).toFixed(2)}). Raise it under Plan & billing to keep booting.`,
+        studentReason: 'Your class has used its desktop budget for the month. Ask your teacher.',
+      }
     }
   }
 

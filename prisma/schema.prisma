@@ -25,6 +25,10 @@ model Teacher {
   stripeSubscriptionId String?
   planStatus           String? // active | trialing | past_due | canceled
   currentPeriodEnd     DateTime?
+
+  // Cost guardrails (null = no limit)
+  maxConcurrentDesktops Int?
+  monthlySpendCapCents  Int?
 }
 
 model Classroom {

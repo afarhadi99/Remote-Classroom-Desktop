@@ -21,6 +21,7 @@ import {
   ScrollText,
   FileUp,
   Inbox,
+  CalendarDays,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -30,6 +31,7 @@ import { MonitorWall } from "./MonitorWall"
 import { ActivityLog } from "./ActivityLog"
 import { FilesModal } from "@/components/FilesModal"
 import { CollectModal } from "@/components/CollectModal"
+import { AttendanceModal } from "@/components/AttendanceModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -101,6 +103,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [lockBusy, setLockBusy] = useState(false)
   const [handoutBusy, setHandoutBusy] = useState(false)
   const [collectOpen, setCollectOpen] = useState(false)
+  const [attendanceOpen, setAttendanceOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const initialized = useRef(false)
 
@@ -427,6 +430,9 @@ export function ClassManager({ classId }: { classId: string }) {
               <Button variant="outline" size="sm" onClick={() => setCollectOpen(true)}>
                 <Inbox className="size-3.5" /> Collect work
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setAttendanceOpen(true)}>
+                <CalendarDays className="size-3.5" /> Attendance
+              </Button>
             </div>
           </div>
           {students.length === 0 ? (
@@ -462,6 +468,12 @@ export function ClassManager({ classId }: { classId: string }) {
         onOpenChange={(v) => !v && setFilesMachine(null)}
       />
       <CollectModal classId={classId} open={collectOpen} onOpenChange={setCollectOpen} />
+      <AttendanceModal
+        classId={classId}
+        className={classroom.name}
+        open={attendanceOpen}
+        onOpenChange={setAttendanceOpen}
+      />
     </main>
   )
 }

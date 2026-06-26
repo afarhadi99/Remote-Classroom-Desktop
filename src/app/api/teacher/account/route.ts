@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
 import { getPlan, isUnlimited } from '@/lib/plans'
@@ -32,5 +33,26 @@ export async function GET() {
     classCount,
     billingEnabled: stripeEnabled(),
     hasBillingAccount: !!record.stripeCustomerId,
+    guardrails: {
+      maxConcurrentDesktops: record.maxConcurrentDesktops,
+      monthlySpendCapCents: record.monthlySpendCapCents,
+    },
   })
+}
+
+const guardrailSchema = z.object({
+  maxConcurrentDesktops: z.number().int().min(0).max(1000).nullable(), // 0 = freeze all boots
+  monthlySpendCapCents: z.number().int().min(0).max(100_000_00).nullable(),
+})
+
+// Update cost guardrails.
+export async function PATCH(req: Request) {
+  const teacher = await getTeacher()
+  if (!teacher) return apiError('Unauthorized', 401)
+  const body = await req.json().catch(() => null)
+  const parsed = guardrailSchema.safeParse(body)
+  if (!parsed.success) return apiError('Invalid guardrail values.')
+
+  await prisma.teacher.update({ where: { id: teacher.id }, data: parsed.data })
+  return json({ ok: true })
 }
