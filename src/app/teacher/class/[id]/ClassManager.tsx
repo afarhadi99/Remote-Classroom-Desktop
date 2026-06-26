@@ -23,6 +23,7 @@ import {
   Inbox,
   CalendarDays,
   CalendarClock,
+  UserPlus,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -34,6 +35,7 @@ import { FilesModal } from "@/components/FilesModal"
 import { CollectModal } from "@/components/CollectModal"
 import { AttendanceModal } from "@/components/AttendanceModal"
 import { ScheduleModal } from "@/components/ScheduleModal"
+import { RosterModal } from "@/components/RosterModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -119,6 +121,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [collectOpen, setCollectOpen] = useState(false)
   const [attendanceOpen, setAttendanceOpen] = useState(false)
   const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [rosterOpen, setRosterOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const initialized = useRef(false)
 
@@ -551,6 +554,9 @@ export function ClassManager({ classId }: { classId: string }) {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Students</h2>
             <div className="flex gap-2">
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleHandoutFile} />
+              <Button variant="outline" size="sm" onClick={() => setRosterOpen(true)}>
+                <UserPlus className="size-3.5" /> Add students
+              </Button>
               <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={handoutBusy}>
                 {handoutBusy ? <Spinner className="size-3.5" /> : <FileUp className="size-3.5" />} Hand out file
               </Button>
@@ -563,9 +569,15 @@ export function ClassManager({ classId }: { classId: string }) {
             </div>
           </div>
           {students.length === 0 ? (
-            <Card className="mt-3 items-center py-12 text-center text-muted-foreground">
-              No students yet. Share the join code{" "}
-              <span className="font-mono font-medium text-primary">{classroom.joinCode}</span> to get started.
+            <Card className="mt-3 items-center gap-3 py-12 text-center text-muted-foreground">
+              <p>
+                No students yet. Share the join code{" "}
+                <span className="font-mono font-medium text-primary">{classroom.joinCode}</span>, or add a roster
+                now.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setRosterOpen(true)}>
+                <UserPlus className="size-3.5" /> Add students
+              </Button>
             </Card>
           ) : (
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -607,6 +619,7 @@ export function ClassManager({ classId }: { classId: string }) {
         open={scheduleOpen}
         onOpenChange={setScheduleOpen}
       />
+      <RosterModal classId={classId} open={rosterOpen} onOpenChange={setRosterOpen} onAdded={load} />
     </main>
   )
 }

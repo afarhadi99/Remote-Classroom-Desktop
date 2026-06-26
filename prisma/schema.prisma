@@ -50,6 +50,8 @@ model Classroom {
   // "Eyes on me" focus lock — when set, students see a full-screen lock over their desktop.
   lockedAt           DateTime?
   lockMessage        String?
+  // Broadcast / spotlight: when set, every student sees a view-only stream of this machine.
+  spotlightMachineId String?
   createdAt          DateTime  @default(now())
   students           Student[]
   machines           Machine[]

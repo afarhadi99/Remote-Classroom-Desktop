@@ -14,6 +14,7 @@ export type EventType =
   | 'shutdown_all'
   | 'handout'
   | 'exam'
+  | 'spotlight'
 
 export interface LogEventInput {
   classroomId: string

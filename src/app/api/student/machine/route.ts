@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { apiError, getStudent, json } from '@/lib/api'
 import { serializeMachine, monthlyUsage } from '@/lib/machines'
 import { getPlan } from '@/lib/plans'
+import { viewOnlyUrlFromPreview } from '@/lib/daytona'
 
 // Current student's class + their (single) active-or-latest machine + remaining time.
 export async function GET() {
@@ -23,6 +24,23 @@ export async function GET() {
   const classroom = studentRow.classroom
   const plan = getPlan(classroom.teacher.plan)
   const usage = monthlyUsage(studentRow, plan)
+
+  // Broadcast / spotlight: if the teacher is spotlighting a (running) desktop, surface a
+  // view-only stream of it. We skip it when the spotlighted machine is the student's own.
+  let spotlight: { tileUrl: string; presenterName: string | null } | null = null
+  if (classroom.spotlightMachineId && classroom.spotlightMachineId !== machine?.id) {
+    const presenter = await prisma.machine.findUnique({
+      where: { id: classroom.spotlightMachineId },
+      include: { student: true },
+    })
+    if (presenter && presenter.status === 'RUNNING' && presenter.previewUrl) {
+      const tileUrl =
+        presenter.os === 'linux'
+          ? viewOnlyUrlFromPreview(presenter.previewUrl)
+          : presenter.previewUrl
+      if (tileUrl) spotlight = { tileUrl, presenterName: presenter.student?.name ?? null }
+    }
+  }
 
   return json({
     student: { id: student.id, name: student.name, hasFiles: !!studentRow.volumeId },
@@ -48,5 +66,6 @@ export async function GET() {
       machine?.status === 'RUNNING' &&
       !!machine.watchedUntil &&
       machine.watchedUntil.getTime() > Date.now(),
+    spotlight,
   })
 }

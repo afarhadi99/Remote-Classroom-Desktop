@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock, Eye } from "lucide-react"
+import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock, Eye, Radio } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { DesktopViewer } from "@/components/DesktopViewer"
 import { FilesModal } from "@/components/FilesModal"
@@ -37,6 +37,7 @@ interface Payload {
   usage: { remaining: number; unlimited: boolean; sessionCap: number }
   machine: SMachine | null
   beingWatched: boolean
+  spotlight: { tileUrl: string; presenterName: string | null } | null
 }
 
 export function StudentDashboard() {
@@ -95,13 +96,16 @@ export function StudentDashboard() {
     )
   }
 
-  const { classroom, machine, student, usage, beingWatched } = data
+  const { classroom, machine, student, usage, beingWatched, spotlight } = data
   const isRunning = machine?.status === "RUNNING" && machine.previewUrl
   const isBooting = machine && machine.status === "PROVISIONING"
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">
       {classroom.locked && <LockOverlay message={classroom.lockMessage} />}
+      {!classroom.locked && spotlight && (
+        <SpotlightOverlay tileUrl={spotlight.tileUrl} presenterName={spotlight.presenterName} />
+      )}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wider text-muted-foreground">{classroom.name}</p>
@@ -176,6 +180,41 @@ export function StudentDashboard() {
         onOpenChange={setFilesOpen}
       />
     </main>
+  )
+}
+
+function SpotlightOverlay({
+  tileUrl,
+  presenterName,
+}: {
+  tileUrl: string
+  presenterName: string | null
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-ink/90 p-4 backdrop-blur-sm sm:p-8">
+      <div className="mx-auto flex w-full max-w-6xl items-center gap-2 pb-3 text-background">
+        <span className="grid size-8 place-items-center rounded-lg bg-primary/20 text-primary-foreground">
+          <Radio className="size-4 animate-pulse text-primary" />
+        </span>
+        <div>
+          <p className="text-xs uppercase tracking-wider text-background/60">Your teacher is presenting</p>
+          <h2 className="font-display text-xl leading-tight text-background">
+            {presenterName ? `${presenterName}'s screen` : "A classmate's screen"}
+          </h2>
+        </div>
+      </div>
+      <div className="mx-auto w-full max-w-6xl flex-1 overflow-hidden rounded-xl border border-white/10 bg-black shadow-2xl">
+        <iframe
+          src={tileUrl}
+          tabIndex={-1}
+          className="pointer-events-none size-full"
+          title="Spotlighted desktop"
+        />
+      </div>
+      <p className="mx-auto mt-3 w-full max-w-6xl text-center text-xs text-background/50">
+        This is a view-only broadcast — it will close when your teacher ends it.
+      </p>
+    </div>
   )
 }
 

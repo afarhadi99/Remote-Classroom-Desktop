@@ -277,12 +277,23 @@ export async function stopMachine(machineId: string): Promise<void> {
       data: { status: 'STOPPED', stoppedAt, previewUrl: null },
     })
     .catch(() => {})
+  await clearSpotlightIfMachine(machine.classroomId, machineId)
   await logEvent({
     classroomId: machine.classroomId,
     studentId: machine.studentId,
     type: 'stopped',
     message: `${machine.student?.name ?? 'A student'}'s desktop was shut down`,
   })
+}
+
+/** Clears a class's broadcast spotlight if it points at the given (now-stopped) machine. */
+async function clearSpotlightIfMachine(classroomId: string, machineId: string): Promise<void> {
+  await prisma.classroom
+    .updateMany({
+      where: { id: classroomId, spotlightMachineId: machineId },
+      data: { spotlightMachineId: null },
+    })
+    .catch(() => {})
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -359,6 +370,7 @@ export async function sweepExpiredMachines(): Promise<{ expired: number; stuck: 
     await prisma.machine
       .update({ where: { id: m.id }, data: { stoppedAt: now } })
       .catch(() => {})
+    await clearSpotlightIfMachine(m.classroomId, m.id)
     await logEvent({
       classroomId: m.classroomId,
       studentId: m.studentId,

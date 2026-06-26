@@ -6,7 +6,7 @@ Tracking the 20-feature roadmap. Implemented across `/loop` iterations.
 |---|---------|----------|--------|
 | 1 | Eyes-On-Me screen lock / focus mode | Safety & Control | ☑ |
 | 2 | Lesson templates | Teaching | ☑ |
-| 3 | Broadcast & spotlight | Teaching | ☐ |
+| 3 | Broadcast & spotlight | Teaching | ☑ |
 | 4 | Handout drop & collect work | Teaching | ☑ |
 | 5 | Attendance from activity | Teaching | ☑ |
 | 6 | Take control / remote assist | Safety & Control | ☑ |
@@ -21,7 +21,7 @@ Tracking the 20-feature roadmap. Implemented across `/loop` iterations.
 | 15 | Concurrency & spend guardrails | Scale & Ops | ☑ |
 | 16 | App catalog & golden-image snapshots | Platform | ☐ |
 | 17 | Group workstations | Collaboration | ☐ |
-| 18 | Roster sync (Google Classroom & Clever) | Admin & Billing | ☐ |
+| 18 | Roster sync (paste / CSV import) | Admin & Billing | ☑ |
 | 19 | District SSO & admin console | Admin & Billing | ☐ |
 | 20 | Annual billing & seat packs | Admin & Billing | ☑ |
 

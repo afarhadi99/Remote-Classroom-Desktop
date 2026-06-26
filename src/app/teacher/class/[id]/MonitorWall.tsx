@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Maximize2, X, MonitorOff } from "lucide-react"
+import { Maximize2, X, MonitorOff, Radio, RadioTower } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -25,14 +25,18 @@ interface RunningMachine {
 export function MonitorWall({ classId }: { classId: string }) {
   const toast = useToast()
   const [machines, setMachines] = useState<RunningMachine[] | null>(null)
+  const [spotlightId, setSpotlightId] = useState<string | null>(null)
+  const [spotlightBusy, setSpotlightBusy] = useState(false)
   const [expanded, setExpanded] = useState<RunningMachine | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const { machines } = await api<{ machines: RunningMachine[] }>(
-        `/api/classes/${classId}/machines/running`,
-      )
+      const { machines, spotlightMachineId } = await api<{
+        machines: RunningMachine[]
+        spotlightMachineId: string | null
+      }>(`/api/classes/${classId}/machines/running`)
       setMachines(machines)
+      setSpotlightId(spotlightMachineId)
       setExpanded((cur) => (cur ? machines.find((m) => m.id === cur.id) ?? null : null))
     } catch (e) {
       toast.error("Could not load desktops", (e as Error).message)
@@ -44,6 +48,27 @@ export function MonitorWall({ classId }: { classId: string }) {
     const t = setInterval(load, 3000)
     return () => clearInterval(t)
   }, [load])
+
+  const toggleSpotlight = useCallback(
+    async (m: RunningMachine) => {
+      const next = spotlightId === m.id ? null : m.id
+      setSpotlightId(next) // optimistic
+      setSpotlightBusy(true)
+      try {
+        await api(`/api/classes/${classId}/spotlight`, { body: { machineId: next } })
+        toast[next ? "info" : "success"](
+          next ? `Spotlighting ${m.studentName ?? "a student"}` : "Spotlight ended",
+          next ? "Every student now sees this screen." : "Students are back to their own desktops.",
+        )
+      } catch (e) {
+        toast.error("Could not change spotlight", (e as Error).message)
+        load()
+      } finally {
+        setSpotlightBusy(false)
+      }
+    },
+    [classId, spotlightId, toast, load],
+  )
 
   if (!machines) {
     return (
@@ -67,11 +92,31 @@ export function MonitorWall({ classId }: { classId: string }) {
     )
   }
 
+  const spotlit = spotlightId ? machines.find((m) => m.id === spotlightId) : null
+
   return (
     <>
+      {spotlit && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm text-foreground">
+          <RadioTower className="size-4 shrink-0 text-primary" />
+          <span className="flex-1">
+            Broadcasting <strong>{spotlit.studentName ?? "a student"}</strong>&apos;s screen to every student.
+          </span>
+          <Button variant="outline" size="sm" onClick={() => toggleSpotlight(spotlit)} disabled={spotlightBusy}>
+            <X className="size-3.5" /> Stop broadcast
+          </Button>
+        </div>
+      )}
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {machines.map((m) => (
-          <Tile key={m.id} m={m} onExpand={() => m.previewUrl && setExpanded(m)} />
+          <Tile
+            key={m.id}
+            m={m}
+            spotlit={spotlightId === m.id}
+            spotlightBusy={spotlightBusy}
+            onSpotlight={() => toggleSpotlight(m)}
+            onExpand={() => m.previewUrl && setExpanded(m)}
+          />
         ))}
       </div>
 
@@ -81,9 +126,20 @@ export function MonitorWall({ classId }: { classId: string }) {
             <h3 className="font-display text-xl text-background">
               {expanded.studentName}&apos;s desktop
             </h3>
-            <Button variant="secondary" size="sm" onClick={() => setExpanded(null)}>
-              <X className="size-4" /> Close
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant={spotlightId === expanded.id ? "secondary" : "ink"}
+                size="sm"
+                onClick={() => toggleSpotlight(expanded)}
+                disabled={spotlightBusy}
+              >
+                <Radio className="size-4" />
+                {spotlightId === expanded.id ? "Stop broadcast" : "Broadcast to class"}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setExpanded(null)}>
+                <X className="size-4" /> Close
+              </Button>
+            </div>
           </div>
           <div className="mx-auto w-full max-w-6xl">
             <DesktopViewer
@@ -103,7 +159,19 @@ export function MonitorWall({ classId }: { classId: string }) {
   )
 }
 
-function Tile({ m, onExpand }: { m: RunningMachine; onExpand: () => void }) {
+function Tile({
+  m,
+  spotlit,
+  spotlightBusy,
+  onSpotlight,
+  onExpand,
+}: {
+  m: RunningMachine
+  spotlit: boolean
+  spotlightBusy: boolean
+  onSpotlight: () => void
+  onExpand: () => void
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
 
@@ -126,7 +194,10 @@ function Tile({ m, onExpand }: { m: RunningMachine; onExpand: () => void }) {
   return (
     <div
       ref={ref}
-      className="group overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+      className={cn(
+        "group overflow-hidden rounded-xl border bg-card shadow-sm transition",
+        spotlit ? "border-primary ring-2 ring-primary/40" : "border-border",
+      )}
     >
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <Avatar className="size-6">
@@ -177,13 +248,26 @@ function Tile({ m, onExpand }: { m: RunningMachine; onExpand: () => void }) {
         )}
       </button>
 
-      <div className="flex items-center justify-between px-3 py-2">
+      <div className="flex items-center justify-between gap-2 px-3 py-2">
         <StatusBadge status={m.status} />
-        {m.remainingMs != null && (
-          <span className="text-xs tabular-nums text-muted-foreground">
-            {formatRemaining(m.remainingMs)}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {m.remainingMs != null && (
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {formatRemaining(m.remainingMs)}
+            </span>
+          )}
+          {running && (
+            <Button
+              variant={spotlit ? "ink" : "outline"}
+              size="icon-sm"
+              onClick={onSpotlight}
+              disabled={spotlightBusy}
+              title={spotlit ? "Stop broadcasting this screen" : "Broadcast this screen to the class"}
+            >
+              <Radio className="size-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )

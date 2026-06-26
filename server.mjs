@@ -115,7 +115,11 @@ async function authorizeDesktop(req, sandboxId) {
     if (machine) {
       const authorized =
         (session.role === 'teacher' && machine.classroom.teacherId === session.id) ||
-        (session.role === 'student' && machine.studentId === session.id)
+        (session.role === 'student' && machine.studentId === session.id) ||
+        // Broadcast: any student in the class may view the currently-spotlighted desktop.
+        (session.role === 'student' &&
+          machine.classroomId === session.classroomId &&
+          machine.classroom.spotlightMachineId === machine.id)
       if (authorized) value = { ok: true }
     }
   } catch (err) {

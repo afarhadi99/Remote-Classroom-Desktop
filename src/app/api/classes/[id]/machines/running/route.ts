@@ -21,6 +21,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const now = Date.now()
   return json({
+    spotlightMachineId: classroom.spotlightMachineId,
     machines: machines.map((m) => ({
       id: m.id,
       studentId: m.studentId,
