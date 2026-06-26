@@ -28,6 +28,7 @@ import {
   Boxes,
   Check,
   Flame,
+  UsersRound,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -35,6 +36,7 @@ import { OsPicker, DurationPicker } from "@/components/Pickers"
 import { DesktopViewer } from "@/components/DesktopViewer"
 import { MonitorWall } from "./MonitorWall"
 import { ActivityLog } from "./ActivityLog"
+import { GroupsPanel } from "./GroupsPanel"
 import { FilesModal } from "@/components/FilesModal"
 import { CollectModal } from "@/components/CollectModal"
 import { AttendanceModal } from "@/components/AttendanceModal"
@@ -55,6 +57,8 @@ interface SMachine {
   id: string
   studentId: string | null
   studentName: string | null
+  groupId: string | null
+  groupName: string | null
   os: string
   status: string
   previewUrl: string | null
@@ -70,6 +74,13 @@ interface SStudent {
   machine: SMachine | null
   usage?: { used: number; remaining: number; unlimited: boolean }
   flag: { kind: string | null; note: string | null; at: string } | null
+  groupId: string | null
+}
+interface SGroup {
+  id: string
+  name: string
+  students: { id: string; name: string }[]
+  machine: SMachine | null
 }
 interface SClassroom {
   id: string
@@ -100,6 +111,7 @@ interface ClassData {
   plan: PlanInfo
   students: SStudent[]
   machines: SMachine[]
+  groups: SGroup[]
   usageSummary: { totalMinutes: number; estimatedCostCents: number }
 }
 
@@ -124,7 +136,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [savingSettings, setSavingSettings] = useState(false)
   const [busy, setBusy] = useState<Record<string, boolean>>({})
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [view, setView] = useState<"students" | "wall" | "activity">("students")
+  const [view, setView] = useState<"students" | "groups" | "wall" | "activity">("students")
   const [filesMachine, setFilesMachine] = useState<{ id: string; name: string | null } | null>(null)
   const [lockBusy, setLockBusy] = useState(false)
   const [handoutBusy, setHandoutBusy] = useState(false)
@@ -343,7 +355,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const activeCount = students.filter((s) => s.machine && ACTIVE.includes(s.machine.status)).length
   const flaggedStudents = students.filter((s) => s.flag)
   const selectedMachine =
-    selectedId != null ? students.map((s) => s.machine).find((m) => m && m.id === selectedId) ?? null : null
+    selectedId != null ? data.machines.find((m) => m.id === selectedId) ?? null : null
   const studentCapLabel = plan.maxStudentsUnlimited ? null : `${students.length} / ${plan.maxStudentsPerClass}`
   const nearStudentCap = !plan.maxStudentsUnlimited && students.length >= plan.maxStudentsPerClass
 
@@ -357,7 +369,7 @@ export function ClassManager({ classId }: { classId: string }) {
         <div className="mt-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-display text-2xl text-foreground">
-              Watching {selectedMachine.studentName}&apos;s desktop
+              Watching {selectedMachine.studentName ?? `${selectedMachine.groupName} group`}&apos;s desktop
             </h2>
             <div className="flex gap-2">
               <Button
@@ -377,8 +389,8 @@ export function ClassManager({ classId }: { classId: string }) {
           <DesktopViewer
             machine={selectedMachine}
             watchMachineId={selectedMachine.id}
-            onStop={() => stopMachine(selectedMachine.id, selectedMachine.studentId!)}
-            stopping={busy[selectedMachine.studentId!]}
+            onStop={() => stopMachine(selectedMachine.id, selectedMachine.studentId ?? selectedMachine.id)}
+            stopping={busy[selectedMachine.studentId ?? selectedMachine.id]}
           />
         </div>
       ) : (
@@ -421,6 +433,20 @@ export function ClassManager({ classId }: { classId: string }) {
                 )}
               >
                 <List className="size-3.5" /> Students
+              </button>
+              <button
+                onClick={() => setView("groups")}
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition",
+                  view === "groups" ? "bg-ink text-background" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <UsersRound className="size-3.5" /> Groups
+                {data.groups.length > 0 && (
+                  <span className="ml-0.5 rounded-full bg-secondary px-1.5 text-[11px] font-semibold text-foreground">
+                    {data.groups.length}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setView("wall")}
@@ -499,6 +525,15 @@ export function ClassManager({ classId }: { classId: string }) {
             <MonitorWall classId={classId} />
           ) : view === "activity" ? (
             <ActivityLog classId={classId} usage={data.usageSummary} />
+          ) : view === "groups" ? (
+            <GroupsPanel
+              classId={classId}
+              groups={data.groups}
+              students={students.map((s) => ({ id: s.id, name: s.name, groupId: s.groupId }))}
+              onChange={load}
+              onWatch={(mid) => setSelectedId(mid)}
+              onFiles={(mid, name) => setFilesMachine({ id: mid, name })}
+            />
           ) : (
           <>
           <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1.4fr]">
@@ -808,6 +843,11 @@ function StudentCard({
                 <Hand className="size-3" /> {student.flag.kind === "report" ? "Reported" : "Help"}
               </span>
             )}
+            {student.groupId && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
+                <UsersRound className="size-3" /> Group
+              </span>
+            )}
           </div>
         </div>
         {m && <OsIcon os={m.os} className="size-4 text-muted-foreground" />}
@@ -833,7 +873,11 @@ function StudentCard({
       )}
 
       <div className="mt-auto flex gap-2">
-        {isRunning && m?.previewUrl ? (
+        {student.groupId ? (
+          <p className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-2.5 py-2 text-xs text-muted-foreground">
+            <UsersRound className="size-3.5 text-violet-600" /> Shares a group desktop — manage it in the Groups tab.
+          </p>
+        ) : isRunning && m?.previewUrl ? (
           <>
             <Button variant="ink" size="sm" className="flex-1" onClick={() => onOpen(m.id)}>
               <Monitor className="size-3.5" /> Watch

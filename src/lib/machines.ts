@@ -1,5 +1,5 @@
 import 'server-only'
-import type { Machine, Student } from '@prisma/client'
+import type { Machine, Student, ClassGroup } from '@prisma/client'
 import { prisma } from './prisma'
 import { createDesktop, destroyDesktop, getOrCreateVolume, daytonaErrorMessage } from './daytona'
 import type { OsType } from './os'
@@ -24,6 +24,8 @@ export interface SerializedMachine {
   classroomId: string
   studentId: string | null
   studentName: string | null
+  groupId: string | null
+  groupName: string | null
   os: OsType
   status: string
   previewUrl: string | null
@@ -35,7 +37,7 @@ export interface SerializedMachine {
 }
 
 export function serializeMachine(
-  m: Machine & { student?: Student | null },
+  m: Machine & { student?: Student | null; group?: ClassGroup | null },
 ): SerializedMachine {
   const expiresAt = m.expiresAt ? new Date(m.expiresAt) : null
   const remainingMs =
@@ -45,6 +47,8 @@ export function serializeMachine(
     classroomId: m.classroomId,
     studentId: m.studentId,
     studentName: m.student?.name ?? null,
+    groupId: m.groupId,
+    groupName: m.group?.name ?? null,
     os: m.os as OsType,
     status: m.status,
     previewUrl: m.status === 'RUNNING' ? m.previewUrl : null,
@@ -184,17 +188,105 @@ export async function bootMachineForStudent(params: {
   return { ok: true, machine }
 }
 
+/**
+ * Boots (or returns) the single shared desktop for a group workstation. Mounts the group's
+ * shared volume so every member sees the same files. Group desktops aren't metered against
+ * any one student's monthly minutes, but the teacher's concurrency + spend guardrails apply.
+ */
+export async function bootMachineForGroup(params: {
+  classroomId: string
+  groupId: string
+  os: OsType
+  durationMin: number
+}): Promise<BootResult> {
+  const existing = await prisma.machine.findFirst({
+    where: {
+      groupId: params.groupId,
+      status: { in: ACTIVE_STATUSES as unknown as string[] },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (existing) return { ok: true, machine: existing }
+
+  const group = await prisma.classGroup.findUnique({
+    where: { id: params.groupId },
+    include: { classroom: { include: { teacher: true } } },
+  })
+  if (!group || group.classroomId !== params.classroomId) {
+    return { ok: false, reason: 'Group not found.', studentReason: 'This group no longer exists.' }
+  }
+
+  const teacher = group.classroom.teacher
+  const plan = getPlan(teacher.plan)
+
+  // Teacher cost guardrails (shared with individual boots).
+  if (teacher.maxConcurrentDesktops != null) {
+    const active = await prisma.machine.count({
+      where: { classroom: { teacherId: teacher.id }, status: { in: ACTIVE_STATUSES as unknown as string[] } },
+    })
+    if (active >= teacher.maxConcurrentDesktops) {
+      return {
+        ok: false,
+        reason: `You've hit your concurrency limit of ${teacher.maxConcurrentDesktops} running desktops.`,
+        studentReason: 'Your class has hit its limit of running desktops. Ask your teacher.',
+      }
+    }
+  }
+  if (teacher.monthlySpendCapCents != null) {
+    const agg = await prisma.student.aggregate({
+      where: { classroom: { teacherId: teacher.id }, usageMonth: currentUsageMonth() },
+      _sum: { usageMinutes: true },
+    })
+    if (estimateCostCents(agg._sum.usageMinutes ?? 0) >= teacher.monthlySpendCapCents) {
+      return {
+        ok: false,
+        reason: `You've reached your monthly spend cap. Raise it under Plan & billing to keep booting.`,
+        studentReason: 'Your class has used its desktop budget for the month. Ask your teacher.',
+      }
+    }
+  }
+
+  const durationMin = Math.max(5, Math.min(params.durationMin, plan.maxSessionMinutes))
+  const machine = await prisma.machine.create({
+    data: {
+      classroomId: params.classroomId,
+      groupId: params.groupId,
+      os: params.os,
+      durationMin,
+      status: 'PROVISIONING',
+    },
+  })
+  void provisionMachine(machine.id)
+  return { ok: true, machine }
+}
+
 /** Heavy lifting: create the Daytona desktop and flip the machine to RUNNING. */
 export async function provisionMachine(machineId: string): Promise<void> {
   const machine = await prisma.machine.findUnique({
     where: { id: machineId },
-    include: { student: true, classroom: true },
+    include: { student: true, classroom: true, group: true },
   })
   if (!machine) return
 
+  // A friendly label for activity-log entries (group desktop or a student's desktop).
+  const ownerLabel = machine.group
+    ? `Group ${machine.group.name}`
+    : machine.student?.name ?? 'A student'
+
   try {
     let volumeId: string | undefined
-    if (machine.student) {
+    if (machine.group) {
+      // Shared group volume — all members read/write the same files.
+      const volName = machine.group.volumeName || `rcd-grp-${machine.group.id}`
+      const vol = await getOrCreateVolume(volName)
+      volumeId = vol.id
+      if (!machine.group.volumeId) {
+        await prisma.classGroup.update({
+          where: { id: machine.group.id },
+          data: { volumeId: vol.id, volumeName: volName },
+        })
+      }
+    } else if (machine.student) {
       const volName = machine.student.volumeName || `rcd-vol-${machine.student.id}`
       const vol = await getOrCreateVolume(volName)
       volumeId = vol.id
@@ -241,7 +333,7 @@ export async function provisionMachine(machineId: string): Promise<void> {
       classroomId: machine.classroomId,
       studentId: machine.studentId,
       type: 'running',
-      message: `${machine.student?.name ?? 'A student'}'s ${machine.os} desktop is ready`,
+      message: `${ownerLabel}'s ${machine.os} desktop is ready`,
     })
   } catch (err) {
     const msg = daytonaErrorMessage(err)
@@ -252,7 +344,7 @@ export async function provisionMachine(machineId: string): Promise<void> {
       classroomId: machine.classroomId,
       studentId: machine.studentId,
       type: 'error',
-      message: `Desktop for ${machine.student?.name ?? 'a student'} failed: ${msg}`,
+      message: `Desktop for ${ownerLabel} failed: ${msg}`,
     })
   }
 }
@@ -261,7 +353,7 @@ export async function provisionMachine(machineId: string): Promise<void> {
 export async function stopMachine(machineId: string): Promise<void> {
   const machine = await prisma.machine.findUnique({
     where: { id: machineId },
-    include: { student: true },
+    include: { student: true, group: true },
   })
   if (!machine) return
   await prisma.machine
@@ -283,7 +375,7 @@ export async function stopMachine(machineId: string): Promise<void> {
     classroomId: machine.classroomId,
     studentId: machine.studentId,
     type: 'stopped',
-    message: `${machine.student?.name ?? 'A student'}'s desktop was shut down`,
+    message: `${machine.group ? `Group ${machine.group.name}` : machine.student?.name ?? 'A student'}'s desktop was shut down`,
   })
 }
 

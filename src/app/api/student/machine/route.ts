@@ -15,11 +15,22 @@ export async function GET() {
   })
   if (!studentRow) return apiError('Your class no longer exists.', 404)
 
-  const machine = await prisma.machine.findFirst({
-    where: { studentId: student.id },
-    orderBy: { createdAt: 'desc' },
-    include: { student: true },
-  })
+  // Grouped students share their group's desktop; solo students get their own.
+  const machine = studentRow.groupId
+    ? await prisma.machine.findFirst({
+        where: { groupId: studentRow.groupId },
+        orderBy: { createdAt: 'desc' },
+        include: { student: true, group: true },
+      })
+    : await prisma.machine.findFirst({
+        where: { studentId: student.id, groupId: null },
+        orderBy: { createdAt: 'desc' },
+        include: { student: true, group: true },
+      })
+
+  const group = studentRow.groupId
+    ? await prisma.classGroup.findUnique({ where: { id: studentRow.groupId } })
+    : null
 
   const classroom = studentRow.classroom
   const plan = getPlan(classroom.teacher.plan)
@@ -68,5 +79,6 @@ export async function GET() {
       machine.watchedUntil.getTime() > Date.now(),
     spotlight,
     flag: studentRow.flaggedAt ? { kind: studentRow.flagKind, at: studentRow.flaggedAt.toISOString() } : null,
+    group: group ? { id: group.id, name: group.name } : null,
   })
 }

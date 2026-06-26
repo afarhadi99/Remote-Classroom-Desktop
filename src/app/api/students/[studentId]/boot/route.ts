@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
-import { bootMachineForStudent, serializeMachine } from '@/lib/machines'
+import { bootMachineForStudent, bootMachineForGroup, serializeMachine } from '@/lib/machines'
 import { isOsType, type OsType } from '@/lib/os'
 import { logEvent } from '@/lib/events'
 
@@ -31,12 +31,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
   const os: OsType = (parsed.data.os as OsType) ?? (student.classroom.defaultOs as OsType)
   const durationMin = parsed.data.durationMin ?? student.classroom.defaultDurationMin
 
-  const result = await bootMachineForStudent({
-    classroomId: student.classroomId,
-    studentId: student.id,
-    os,
-    durationMin,
-  })
+  // A grouped student shares their group's desktop — boot that instead of a stray solo one.
+  const result = student.groupId
+    ? await bootMachineForGroup({ classroomId: student.classroomId, groupId: student.groupId, os, durationMin })
+    : await bootMachineForStudent({ classroomId: student.classroomId, studentId: student.id, os, durationMin })
   if (!result.ok) return apiError(result.reason, 403)
 
   await logEvent({
@@ -44,7 +42,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
     studentId: student.id,
     type: 'boot',
     actorRole: 'teacher',
-    message: `Teacher started a ${os} desktop for ${student.name}`,
+    message: student.groupId
+      ? `Teacher started the shared desktop for ${student.name}'s group`
+      : `Teacher started a ${os} desktop for ${student.name}`,
   })
 
   return json({ ok: true, machine: serializeMachine(result.machine) })

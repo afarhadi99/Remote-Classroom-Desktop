@@ -113,13 +113,23 @@ async function authorizeDesktop(req, sandboxId) {
       include: { classroom: true },
     })
     if (machine) {
-      const authorized =
+      let authorized =
         (session.role === 'teacher' && machine.classroom.teacherId === session.id) ||
         (session.role === 'student' && machine.studentId === session.id) ||
         // Broadcast: any student in the class may view the currently-spotlighted desktop.
         (session.role === 'student' &&
           machine.classroomId === session.classroomId &&
           machine.classroom.spotlightMachineId === machine.id)
+
+      // Group workstation: any member of the group may open the shared desktop.
+      if (!authorized && session.role === 'student' && machine.groupId) {
+        const student = await prisma.student.findUnique({
+          where: { id: session.id },
+          select: { groupId: true },
+        })
+        if (student?.groupId && student.groupId === machine.groupId) authorized = true
+      }
+
       if (authorized) value = { ok: true }
     }
   } catch (err) {

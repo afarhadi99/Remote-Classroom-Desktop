@@ -20,9 +20,12 @@ Tracking the 20-feature roadmap. Implemented across `/loop` iterations.
 | 14 | Cost & usage analytics dashboard | Scale & Ops | ☑ |
 | 15 | Concurrency & spend guardrails | Scale & Ops | ☑ |
 | 16 | App catalog & golden-image snapshots | Platform | ☑ |
-| 17 | Group workstations | Collaboration | ☐ |
+| 17 | Group workstations | Collaboration | ☑ |
 | 18 | Roster sync (paste / CSV import) | Admin & Billing | ☑ |
 | 19 | District SSO & admin console | Admin & Billing | ☑ |
 | 20 | Annual billing & seat packs | Admin & Billing | ☑ |
 
 ☐ = not started · ◐ = in progress · ☑ = done
+
+**All 20 features shipped.** Each was built and verified end-to-end against real Daytona
+desktops, with every sandbox cleaned up after testing.

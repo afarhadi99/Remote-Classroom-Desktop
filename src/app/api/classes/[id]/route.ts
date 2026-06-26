@@ -22,7 +22,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const teacherRecord = await prisma.teacher.findUnique({ where: { id: teacher.id } })
   const plan = getPlan(teacherRecord?.plan)
 
-  const [students, machines] = await Promise.all([
+  const [students, machines, groups] = await Promise.all([
     prisma.student.findMany({
       where: { classroomId: id },
       orderBy: { name: 'asc' },
@@ -32,6 +32,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       where: { classroomId: id },
       orderBy: { createdAt: 'desc' },
       include: { student: true },
+    }),
+    prisma.classGroup.findMany({
+      where: { classroomId: id },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        students: { select: { id: true, name: true } },
+        machines: {
+          where: { status: { in: ['PROVISIONING', 'RUNNING'] } },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: { group: true },
+        },
+      },
     }),
   ])
 
@@ -74,8 +87,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         flag: s.flaggedAt
           ? { kind: s.flagKind, note: s.flagNote, at: s.flaggedAt.toISOString() }
           : null,
+        groupId: s.groupId,
       }
     }),
+    groups: groups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      students: g.students,
+      machine: g.machines[0] ? serializeMachine(g.machines[0]) : null,
+    })),
     usageSummary: {
       totalMinutes: totalUsedMinutes,
       estimatedCostCents: estimateCostCents(totalUsedMinutes),

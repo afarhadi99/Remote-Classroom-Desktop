@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock, Eye, Radio, Hand, Flag } from "lucide-react"
+import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock, Eye, Radio, Hand, Flag, UsersRound } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { DesktopViewer } from "@/components/DesktopViewer"
 import { FilesModal } from "@/components/FilesModal"
@@ -39,6 +39,7 @@ interface Payload {
   beingWatched: boolean
   spotlight: { tileUrl: string; presenterName: string | null } | null
   flag: { kind: string | null; at: string } | null
+  group: { id: string; name: string } | null
 }
 
 export function StudentDashboard() {
@@ -129,7 +130,7 @@ export function StudentDashboard() {
     )
   }
 
-  const { classroom, machine, student, usage, beingWatched, spotlight, flag } = data
+  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group } = data
   const isRunning = machine?.status === "RUNNING" && machine.previewUrl
   const isBooting = machine && machine.status === "PROVISIONING"
 
@@ -143,7 +144,11 @@ export function StudentDashboard() {
         <div>
           <p className="text-xs uppercase tracking-wider text-muted-foreground">{classroom.name}</p>
           <h1 className="font-display mt-1 text-3xl text-foreground">
-            {isRunning ? "Your desktop is live" : `Hi ${student.name.split(" ")[0]} 👋`}
+            {isRunning
+              ? group
+                ? `${group.name} — live`
+                : "Your desktop is live"
+              : `Hi ${student.name.split(" ")[0]} 👋`}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -180,6 +185,15 @@ export function StudentDashboard() {
             <div className="flex items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm text-sky-800">
               <Eye className="size-4" />
               Your teacher is viewing your screen.
+            </div>
+          )}
+          {group && (
+            <div className="flex items-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm text-violet-800">
+              <UsersRound className="size-4" />
+              <span>
+                This is your group <strong>{group.name}</strong>&apos;s shared desktop — your teammates see and
+                control the same screen.
+              </span>
             </div>
           )}
           <DesktopViewer
@@ -220,6 +234,7 @@ export function StudentDashboard() {
           usage={usage}
           booting={booting}
           onBoot={boot}
+          groupName={group?.name ?? null}
         />
       )}
 
@@ -293,6 +308,7 @@ function BootCard({
   usage,
   booting,
   onBoot,
+  groupName,
 }: {
   os: OsType
   duration: number
@@ -302,10 +318,12 @@ function BootCard({
   usage: { remaining: number; unlimited: boolean; sessionCap: number }
   booting: boolean
   onBoot: () => void
+  groupName: string | null
 }) {
   const ended = machine && ["STOPPED", "EXPIRED"].includes(machine.status)
   const errored = machine?.status === "ERROR"
-  const outOfMinutes = !usage.unlimited && usage.remaining <= 0
+  // Group desktops aren't metered against an individual student's monthly minutes.
+  const outOfMinutes = !groupName && !usage.unlimited && usage.remaining <= 0
 
   return (
     <div className="mt-5 grid gap-4 md:grid-cols-[1.5fr_1fr]">
@@ -323,7 +341,9 @@ function BootCard({
               ? "Your previous desktop was shut down. Your files are saved — boot a fresh one any time."
               : errored
                 ? "We couldn’t start your last desktop. You can try again."
-                : `Boot a ${os === "windows" ? "Windows" : "Linux"} desktop right in this browser tab.`}
+                : groupName
+                  ? `Boot your group ${groupName}’s shared desktop — your teammates join the very same machine.`
+                  : `Boot a ${os === "windows" ? "Windows" : "Linux"} desktop right in this browser tab.`}
         </p>
 
         {errored && machine?.errorMessage && (
@@ -340,7 +360,7 @@ function BootCard({
         ) : allowStudentBoot ? (
           <Button variant="ink" size="lg" className="mt-6" onClick={onBoot} disabled={booting}>
             {booting ? <Spinner /> : <Rocket className="size-4" />}
-            {ended || errored ? "Boot a new desktop" : "Boot my desktop"}
+            {groupName ? "Boot group desktop" : ended || errored ? "Boot a new desktop" : "Boot my desktop"}
           </Button>
         ) : (
           <p className="mt-6 flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-4 py-3 text-sm text-muted-foreground">

@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const machines = await prisma.machine.findMany({
     where: { classroomId: id, status: { in: ['RUNNING', 'PROVISIONING'] } },
     orderBy: [{ status: 'asc' }, { startedAt: 'desc' }],
-    include: { student: true },
+    include: { student: true, group: true },
   })
 
   const now = Date.now()
@@ -25,7 +25,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     machines: machines.map((m) => ({
       id: m.id,
       studentId: m.studentId,
-      studentName: m.student?.name ?? null,
+      studentName: m.student?.name ?? (m.group ? `${m.group.name} (group)` : null),
       os: m.os,
       status: m.status,
       tileUrl:

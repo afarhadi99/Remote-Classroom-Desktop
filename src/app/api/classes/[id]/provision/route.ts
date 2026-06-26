@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
-import { bootMachineForStudent } from '@/lib/machines'
+import { bootMachineForStudent, bootMachineForGroup } from '@/lib/machines'
 import { isOsType, type OsType } from '@/lib/os'
 import { logEvent } from '@/lib/events'
 
@@ -31,11 +31,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return apiError('No students have joined this class yet. Share the class code first.', 400)
   }
 
-  const results = await Promise.all(
-    students.map((s) =>
-      bootMachineForStudent({ classroomId: id, studentId: s.id, os, durationMin }),
-    ),
-  )
+  // Solo students each get their own desktop; grouped students share one desktop per group.
+  const soloStudents = students.filter((s) => !s.groupId)
+  const groups = await prisma.classGroup.findMany({
+    where: { classroomId: id, students: { some: {} } },
+  })
+
+  const results = await Promise.all([
+    ...soloStudents.map((s) => bootMachineForStudent({ classroomId: id, studentId: s.id, os, durationMin })),
+    ...groups.map((g) => bootMachineForGroup({ classroomId: id, groupId: g.id, os, durationMin })),
+  ])
   const booted = results.filter((r) => r.ok).length
   const skipped = results.length - booted
 
