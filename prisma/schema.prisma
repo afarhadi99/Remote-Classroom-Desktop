@@ -38,6 +38,8 @@ model Classroom {
   teacherId          String
   teacher            Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   defaultOs          String    @default("linux") // linux | windows
+  // Golden image: a specific Daytona snapshot to boot desktops from (null = OS default).
+  snapshot           String?
   defaultDurationMin Int       @default(60) // time limit applied to machines
   allowStudentBoot   Boolean   @default(true) // students can boot their own machine
   idleTimeoutMin     Int       @default(20) // auto-stop a desktop after this many idle minutes (0 = never)
@@ -116,6 +118,11 @@ model Student {
   usageMonth   String?
   usageMinutes Int     @default(0)
   events       ClassEvent[]
+
+  // Panic / "raise hand" flag — set when the student asks for help or reports content.
+  flaggedAt  DateTime?
+  flagKind   String? // help | report
+  flagNote   String?
 
   @@unique([classroomId, name]) // one identity per name within a class
 }

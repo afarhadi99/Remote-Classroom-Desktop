@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock, Eye, Radio } from "lucide-react"
+import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock, Eye, Radio, Hand, Flag } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { DesktopViewer } from "@/components/DesktopViewer"
 import { FilesModal } from "@/components/FilesModal"
@@ -38,6 +38,7 @@ interface Payload {
   machine: SMachine | null
   beingWatched: boolean
   spotlight: { tileUrl: string; presenterName: string | null } | null
+  flag: { kind: string | null; at: string } | null
 }
 
 export function StudentDashboard() {
@@ -46,6 +47,7 @@ export function StudentDashboard() {
   const [booting, setBooting] = useState(false)
   const [stopping, setStopping] = useState(false)
   const [filesOpen, setFilesOpen] = useState(false)
+  const [flagBusy, setFlagBusy] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -74,6 +76,37 @@ export function StudentDashboard() {
     }
   }
 
+  async function raiseHand(kind: "help" | "report") {
+    setFlagBusy(true)
+    try {
+      if (kind === "report") {
+        const note = window.prompt("Briefly describe what you want to report to your teacher (optional):") ?? undefined
+        await api("/api/student/flag", { method: "POST", body: { kind, note } })
+        toast.success("Reported to your teacher", "They'll take a look as soon as they can.")
+      } else {
+        await api("/api/student/flag", { method: "POST", body: { kind } })
+        toast.success("Hand raised", "Your teacher has been notified.")
+      }
+      load()
+    } catch (err) {
+      toast.error("Could not notify your teacher", (err as Error).message)
+    } finally {
+      setFlagBusy(false)
+    }
+  }
+
+  async function lowerHand() {
+    setFlagBusy(true)
+    try {
+      await api("/api/student/flag", { method: "DELETE" })
+      load()
+    } catch (err) {
+      toast.error("Could not update", (err as Error).message)
+    } finally {
+      setFlagBusy(false)
+    }
+  }
+
   async function stop() {
     if (!data?.machine) return
     setStopping(true)
@@ -96,7 +129,7 @@ export function StudentDashboard() {
     )
   }
 
-  const { classroom, machine, student, usage, beingWatched, spotlight } = data
+  const { classroom, machine, student, usage, beingWatched, spotlight, flag } = data
   const isRunning = machine?.status === "RUNNING" && machine.previewUrl
   const isBooting = machine && machine.status === "PROVISIONING"
 
@@ -113,7 +146,23 @@ export function StudentDashboard() {
             {isRunning ? "Your desktop is live" : `Hi ${student.name.split(" ")[0]} 👋`}
           </h1>
         </div>
-        {machine && <StatusBadge status={machine.status} />}
+        <div className="flex items-center gap-2">
+          {flag ? (
+            <Button variant="outline" size="sm" onClick={lowerHand} disabled={flagBusy} className="border-amber-300 text-amber-700">
+              <Hand className="size-3.5" /> {flag.kind === "report" ? "Reported" : "Hand raised"} — lower
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" size="sm" onClick={() => raiseHand("help")} disabled={flagBusy}>
+                <Hand className="size-3.5" /> Raise hand
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => raiseHand("report")} disabled={flagBusy} title="Report something to your teacher">
+                <Flag className="size-3.5" /> Report
+              </Button>
+            </>
+          )}
+          {machine && <StatusBadge status={machine.status} />}
+        </div>
       </div>
 
       {isRunning ? (

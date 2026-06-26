@@ -24,6 +24,9 @@ import {
   CalendarDays,
   CalendarClock,
   UserPlus,
+  Hand,
+  Boxes,
+  Check,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -45,6 +48,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { api, formatRemaining, formatDurationLabel } from "@/lib/client"
 import { initialsOf, cn } from "@/lib/utils"
 import type { OsType } from "@/lib/os"
+import { CATALOG, matchCatalog } from "@/lib/catalog"
 
 interface SMachine {
   id: string
@@ -64,12 +68,14 @@ interface SStudent {
   joinedAt: string
   machine: SMachine | null
   usage?: { used: number; remaining: number; unlimited: boolean }
+  flag: { kind: string | null; note: string | null; at: string } | null
 }
 interface SClassroom {
   id: string
   name: string
   joinCode: string
   defaultOs: OsType
+  snapshot: string | null
   defaultDurationMin: number
   allowStudentBoot: boolean
   idleTimeoutMin: number
@@ -106,6 +112,8 @@ export function ClassManager({ classId }: { classId: string }) {
   const [idleTimeout, setIdleTimeout] = useState(20)
   const [netMode, setNetMode] = useState<"open" | "allowlist" | "blocked">("open")
   const [allowedDomains, setAllowedDomains] = useState("")
+  const [snapshot, setSnapshot] = useState("")
+  const [resolvingFlags, setResolvingFlags] = useState(false)
   const [examMode, setExamMode] = useState(false)
   const [examBusy, setExamBusy] = useState(false)
   const [settingsTouched, setSettingsTouched] = useState(false)
@@ -136,6 +144,7 @@ export function ClassManager({ classId }: { classId: string }) {
         setIdleTimeout(d.classroom.idleTimeoutMin)
         setNetMode(d.classroom.netMode)
         setAllowedDomains(d.classroom.allowedDomains ?? "")
+        setSnapshot(d.classroom.snapshot ?? "")
         initialized.current = true
       }
     } catch (err) {
@@ -160,6 +169,7 @@ export function ClassManager({ classId }: { classId: string }) {
           idleTimeoutMin: idleTimeout,
           netMode,
           allowedDomains: allowedDomains.trim() || null,
+          snapshot: snapshot.trim() || null,
         },
       })
       setSettingsTouched(false)
@@ -197,6 +207,18 @@ export function ClassManager({ classId }: { classId: string }) {
     }
   }
 
+  async function resolveFlag(studentId: string | null) {
+    setResolvingFlags(true)
+    try {
+      await api(`/api/classes/${classId}/resolve-flag`, { method: "POST", body: { studentId } })
+      load()
+    } catch (e) {
+      toast.error("Could not resolve", (e as Error).message)
+    } finally {
+      setResolvingFlags(false)
+    }
+  }
+
   async function toggleExam(on: boolean) {
     setExamBusy(true)
     try {
@@ -231,7 +253,7 @@ export function ClassManager({ classId }: { classId: string }) {
     try {
       await api(`/api/classes/${classId}`, {
         method: "PATCH",
-        body: { defaultOs: os, defaultDurationMin: duration, idleTimeoutMin: idleTimeout },
+        body: { defaultOs: os, defaultDurationMin: duration, idleTimeoutMin: idleTimeout, snapshot: snapshot.trim() || null },
       })
       const res = await api<{ booted: number }>(`/api/classes/${classId}/provision`, { body: { os, durationMin: duration } })
       toast.success(`Booting ${res.booted} desktop${res.booted === 1 ? "" : "s"}`, "This takes a few seconds per machine.")
@@ -294,6 +316,7 @@ export function ClassManager({ classId }: { classId: string }) {
 
   const { classroom, students, plan } = data
   const activeCount = students.filter((s) => s.machine && ACTIVE.includes(s.machine.status)).length
+  const flaggedStudents = students.filter((s) => s.flag)
   const selectedMachine =
     selectedId != null ? students.map((s) => s.machine).find((m) => m && m.id === selectedId) ?? null : null
   const studentCapLabel = plan.maxStudentsUnlimited ? null : `${students.length} / ${plan.maxStudentsPerClass}`
@@ -401,6 +424,52 @@ export function ClassManager({ classId }: { classId: string }) {
             </div>
           </header>
 
+          {flaggedStudents.length > 0 && (
+            <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+                  <Hand className="size-4" />
+                  {flaggedStudents.length} student{flaggedStudents.length === 1 ? "" : "s"} need help
+                </p>
+                <Button variant="outline" size="sm" onClick={() => resolveFlag(null)} disabled={resolvingFlags}>
+                  <Check className="size-3.5" /> Clear all
+                </Button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {flaggedStudents.map((s) => (
+                  <span
+                    key={s.id}
+                    className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-card px-3 py-1 text-xs text-foreground"
+                  >
+                    {s.flag?.kind === "report" ? (
+                      <AlertTriangle className="size-3.5 text-amber-600" />
+                    ) : (
+                      <Hand className="size-3.5 text-amber-600" />
+                    )}
+                    <span className="font-medium">{s.name}</span>
+                    {s.flag?.note && <span className="text-muted-foreground">“{s.flag.note}”</span>}
+                    {s.machine?.status === "RUNNING" && (
+                      <button
+                        onClick={() => setSelectedId(s.machine!.id)}
+                        className="cursor-pointer font-medium text-primary hover:underline"
+                      >
+                        watch
+                      </button>
+                    )}
+                    <button
+                      onClick={() => resolveFlag(s.id)}
+                      disabled={resolvingFlags}
+                      className="cursor-pointer text-muted-foreground hover:text-foreground"
+                      title="Resolve"
+                    >
+                      <Check className="size-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {view === "wall" ? (
             <MonitorWall classId={classId} />
           ) : view === "activity" ? (
@@ -455,6 +524,52 @@ export function ClassManager({ classId }: { classId: string }) {
                   </p>
                 </div>
               </div>
+              <div className="mt-4 space-y-2">
+                <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <Boxes className="size-3.5" /> Environment image
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {CATALOG.map((img) => {
+                    const active = matchCatalog(os, snapshot.trim() || null)?.id === img.id
+                    return (
+                      <button
+                        key={img.id}
+                        type="button"
+                        onClick={() => {
+                          setOs(img.os)
+                          setSnapshot(img.snapshot ?? "")
+                          setSettingsTouched(true)
+                        }}
+                        title={img.description}
+                        className={cn(
+                          "cursor-pointer rounded-md border px-3 py-1.5 text-sm font-medium transition",
+                          active
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card text-foreground hover:border-foreground/20",
+                        )}
+                      >
+                        <span className="mr-1">{img.emoji}</span>
+                        {img.name}
+                        {img.requiresOrgImage && (
+                          <span className={cn("ml-1.5 text-[10px]", active ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                            • org image
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+                <Input
+                  value={snapshot}
+                  onChange={(e) => { setSnapshot(e.target.value); setSettingsTouched(true) }}
+                  placeholder="Custom Daytona snapshot (advanced) — leave blank for default"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Pin a pre-built golden image so every desktop boots identically. Custom and “org image”
+                  options require that snapshot to be published on your Daytona organization.
+                </p>
+              </div>
+
               <div className="mt-4 space-y-2">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Idle auto-stop
@@ -659,6 +774,11 @@ function StudentCard({
             <StatusBadge status={m?.status ?? "NONE"} />
             {isRunning && m?.remainingMs != null && (
               <span className="text-xs tabular-nums text-muted-foreground">{formatRemaining(m.remainingMs)}</span>
+            )}
+            {student.flag && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                <Hand className="size-3" /> {student.flag.kind === "report" ? "Reported" : "Help"}
+              </span>
             )}
           </div>
         </div>

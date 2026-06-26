@@ -67,5 +67,6 @@ export async function GET() {
       !!machine.watchedUntil &&
       machine.watchedUntil.getTime() > Date.now(),
     spotlight,
+    flag: studentRow.flaggedAt ? { kind: studentRow.flagKind, at: studentRow.flaggedAt.toISOString() } : null,
   })
 }

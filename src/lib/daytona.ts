@@ -76,6 +76,8 @@ export async function getOrCreateVolume(name: string): Promise<{ id: string; nam
 
 export interface CreateDesktopOptions {
   os: OsType
+  /** Golden-image override: a specific Daytona snapshot id (falls back to the OS default). */
+  snapshot?: string | null
   /** Auto-stop after this many minutes of inactivity (cost safety net). */
   autoStopInterval: number
   volumeId?: string
@@ -104,7 +106,8 @@ export interface DesktopHandle {
  */
 export async function createDesktop(opts: CreateDesktopOptions): Promise<DesktopHandle> {
   const daytona = getDaytona()
-  const snapshot = OS_SNAPSHOTS[opts.os]
+  // Use the class's pinned golden image if set, otherwise the OS default desktop snapshot.
+  const snapshot = opts.snapshot?.trim() || OS_SNAPSHOTS[opts.os]
   const volumes = opts.volumeId
     ? [{ volumeId: opts.volumeId, mountPath: VOLUME_MOUNT_PATH }]
     : undefined

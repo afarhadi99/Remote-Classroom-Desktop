@@ -43,6 +43,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       name: classroom.name,
       joinCode: classroom.joinCode,
       defaultOs: classroom.defaultOs,
+      snapshot: classroom.snapshot,
       defaultDurationMin: classroom.defaultDurationMin,
       allowStudentBoot: classroom.allowStudentBoot,
       idleTimeoutMin: classroom.idleTimeoutMin,
@@ -70,6 +71,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         joinedAt: s.joinedAt.toISOString(),
         machine: s.machines[0] ? serializeMachine(s.machines[0]) : null,
         usage: { used: usage.used, remaining: usage.remaining, unlimited: usage.unlimited },
+        flag: s.flaggedAt
+          ? { kind: s.flagKind, note: s.flagNote, at: s.flaggedAt.toISOString() }
+          : null,
       }
     }),
     usageSummary: {
@@ -83,6 +87,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   defaultOs: z.string().refine(isOsType, 'Invalid OS').optional(),
+  snapshot: z.string().trim().max(200).nullable().optional(),
   defaultDurationMin: z.number().int().min(5).max(480).optional(),
   allowStudentBoot: z.boolean().optional(),
   idleTimeoutMin: z.number().int().min(0).max(120).optional(),
@@ -106,6 +111,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   // clamp session length to the teacher's plan cap
   const data = { ...parsed.data }
+  if (typeof data.snapshot === 'string' && data.snapshot.trim() === '') data.snapshot = null
   if (typeof data.defaultDurationMin === 'number') {
     const teacherRecord = await prisma.teacher.findUnique({ where: { id: teacher.id } })
     const plan = getPlan(teacherRecord?.plan)

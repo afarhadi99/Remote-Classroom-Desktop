@@ -214,6 +214,7 @@ export async function provisionMachine(machineId: string): Promise<void> {
     const allowed = machine.classroom?.allowedDomains?.trim()
     const handle = await createDesktop({
       os: machine.os as OsType,
+      snapshot: machine.classroom?.snapshot ?? undefined,
       autoStopInterval: autoStop,
       volumeId,
       labels: { machineId },

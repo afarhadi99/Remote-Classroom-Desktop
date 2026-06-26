@@ -15,6 +15,7 @@ export type EventType =
   | 'handout'
   | 'exam'
   | 'spotlight'
+  | 'flag'
 
 export interface LogEventInput {
   classroomId: string
