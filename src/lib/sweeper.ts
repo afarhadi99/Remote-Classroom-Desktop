@@ -1,5 +1,6 @@
 import 'server-only'
 import { sweepExpiredMachines, runScheduledBoots, runScheduledShutdowns } from './machines'
+import { deliverDueWebhooks } from './webhooks'
 
 const globalForSweeper = globalThis as unknown as { rcdSweeper?: NodeJS.Timeout }
 
@@ -26,6 +27,12 @@ export function startSweeper() {
       if (off) console.log(`[sweeper] fired ${off} scheduled class shutdown(s)`)
     } catch (err) {
       console.error('[sweeper] bell-shutdown error', err)
+    }
+    try {
+      const delivered = await deliverDueWebhooks()
+      if (delivered) console.log(`[sweeper] processed ${delivered} webhook deliver(y/ies)`)
+    } catch (err) {
+      console.error('[sweeper] webhook error', err)
     }
   }, 30_000)
   console.log('[sweeper] started (30s interval)')

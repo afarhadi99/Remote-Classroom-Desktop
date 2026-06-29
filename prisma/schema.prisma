@@ -19,6 +19,7 @@ model Teacher {
   classes   Classroom[]
   templates ClassTemplate[]
   apiKeys   ApiKey[]
+  webhooks  WebhookEndpoint[]
 
   // Billing / plan
   plan                 String    @default("free") // free | pro
@@ -133,6 +134,40 @@ model ApiKey {
   createdAt  DateTime  @default(now())
 
   @@index([teacherId])
+}
+
+// An outbound webhook endpoint. Subscribed class-activity events are POSTed here, HMAC-signed.
+model WebhookEndpoint {
+  id         String            @id @default(cuid())
+  teacherId  String
+  teacher    Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  url        String
+  secret     String // HMAC-SHA256 signing secret
+  events     String // comma-separated event types, or "*"
+  enabled    Boolean           @default(true)
+  createdAt  DateTime          @default(now())
+  deliveries WebhookDelivery[]
+
+  @@index([teacherId])
+}
+
+// One delivery attempt-set for (endpoint, event). Retried with backoff; dead-lettered on exhaustion.
+model WebhookDelivery {
+  id           String          @id @default(cuid())
+  endpointId   String
+  endpoint     WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  eventId      String // the ClassEvent id (stable across retries)
+  eventType    String
+  payload      String // JSON body sent
+  status       String          @default("pending") // pending | delivered | failed | dead
+  attempts     Int             @default(0)
+  nextRetryAt  DateTime?
+  responseCode Int?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([status, nextRetryAt])
+  @@index([endpointId])
 }
 
 // Reusable class blueprint a teacher can apply when creating a class.

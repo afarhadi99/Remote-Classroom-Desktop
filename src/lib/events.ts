@@ -1,5 +1,6 @@
 import 'server-only'
 import { prisma } from './prisma'
+import { fanoutEvent } from './webhooks'
 
 export type EventType =
   | 'boot'
@@ -29,10 +30,10 @@ export interface LogEventInput {
   actorRole?: 'teacher' | 'student' | 'system'
 }
 
-/** Append an entry to a class's activity log. Best-effort (never throws). */
+/** Append an entry to a class's activity log + fan out to webhooks. Best-effort (never throws). */
 export async function logEvent(e: LogEventInput): Promise<void> {
   try {
-    await prisma.classEvent.create({
+    const created = await prisma.classEvent.create({
       data: {
         classroomId: e.classroomId,
         studentId: e.studentId ?? null,
@@ -41,6 +42,7 @@ export async function logEvent(e: LogEventInput): Promise<void> {
         actorRole: e.actorRole ?? 'system',
       },
     })
+    void fanoutEvent(created)
   } catch {
     /* logging must never break the request */
   }

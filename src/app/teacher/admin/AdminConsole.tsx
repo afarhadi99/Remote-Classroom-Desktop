@@ -22,6 +22,7 @@ import { useToast } from "@/components/Toast"
 import { api, formatRemaining } from "@/lib/client"
 import { initialsOf } from "@/lib/utils"
 import { ApiKeysPanel } from "./ApiKeysPanel"
+import { WebhooksPanel } from "./WebhooksPanel"
 
 interface Live {
   machineId: string
@@ -279,6 +280,7 @@ export function AdminConsole() {
       </Card>
 
       <ApiKeysPanel />
+      <WebhooksPanel />
     </main>
   )
 }
