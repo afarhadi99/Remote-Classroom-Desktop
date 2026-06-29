@@ -475,6 +475,42 @@ export async function runScheduledBoots(now: Date = new Date()): Promise<number>
   return fired
 }
 
+/**
+ * Bell schedule: shuts down a class at a slot's end time (server local time), so a student
+ * who booted late doesn't run past the bell into the next period. Idempotent per day via
+ * ClassSchedule.lastShutdownOn. Mirrors runScheduledBoots.
+ */
+export async function runScheduledShutdowns(now: Date = new Date()): Promise<number> {
+  const weekday = now.getDay()
+  const minuteOfDay = now.getHours() * 60 + now.getMinutes()
+  const todayStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`
+  const WINDOW = 4 // catch the bell within a few minutes of its end time
+
+  const due = await prisma.classSchedule.findMany({
+    where: { enabled: true, weekday, endMinute: { not: null } },
+  })
+  let fired = 0
+  for (const s of due) {
+    if (s.endMinute == null) continue
+    if (s.lastShutdownOn === todayStr) continue
+    if (minuteOfDay < s.endMinute || minuteOfDay > s.endMinute + WINDOW) continue
+
+    // mark fired BEFORE shutting down so overlapping sweeper ticks don't double-fire
+    await prisma.classSchedule.update({ where: { id: s.id }, data: { lastShutdownOn: todayStr } }).catch(() => {})
+    const stopped = await stopClassroomMachines(s.classroomId)
+    if (stopped > 0) {
+      await logEvent({
+        classroomId: s.classroomId,
+        type: 'shutdown_all',
+        actorRole: 'system',
+        message: `Bell schedule shut down ${stopped} desktop${stopped === 1 ? '' : 's'} at end of class`,
+      })
+    }
+    fired++
+  }
+  return fired
+}
+
 /** Stops every active machine in a classroom. */
 export async function stopClassroomMachines(classroomId: string): Promise<number> {
   const machines = await prisma.machine.findMany({

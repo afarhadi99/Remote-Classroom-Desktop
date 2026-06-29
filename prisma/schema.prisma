@@ -54,6 +54,11 @@ model Classroom {
   lockMessage        String?
   // Broadcast / spotlight: when set, every student sees a view-only stream of this machine.
   spotlightMachineId String?
+  // Text announcement shown to every student as a dismissible banner (null = none).
+  announcement       String?
+  announcementAt     DateTime?
+  // Require a per-student PIN to join (stops roster-name impersonation).
+  requireJoinPin     Boolean   @default(false)
   createdAt          DateTime  @default(now())
   students           Student[]
   machines           Machine[]
@@ -86,9 +91,11 @@ model ClassSchedule {
   weekday     Int // 0=Sunday .. 6=Saturday (server local time)
   startMinute Int // minutes from midnight
   durationMin Int       @default(45)
+  endMinute   Int? // optional bell time: auto-shut down the class at this minute-of-day
   os          String    @default("linux")
   enabled     Boolean   @default(true)
   lastRunOn   String? // "YYYY-MM-DD" guard so a slot fires once per day
+  lastShutdownOn String? // "YYYY-MM-DD" guard so the bell shutdown fires once per day
   createdAt   DateTime  @default(now())
 
   @@index([classroomId])
@@ -144,6 +151,11 @@ model Student {
   flaggedAt  DateTime?
   flagKind   String? // help | report
   flagNote   String?
+
+  // Optional bcrypt-hashed join PIN (set when the class requires one).
+  joinPin    String?
+  // Low-bandwidth desktop streaming preference (persisted per student).
+  connectionSaver Boolean @default(false)
 
   @@unique([classroomId, name]) // one identity per name within a class
 }

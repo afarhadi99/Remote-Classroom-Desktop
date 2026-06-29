@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock, Eye, Radio, Hand, Flag, UsersRound } from "lucide-react"
+import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock, Eye, Radio, Hand, Flag, UsersRound, Megaphone, X } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { DesktopViewer } from "@/components/DesktopViewer"
 import { FilesModal } from "@/components/FilesModal"
@@ -22,7 +22,7 @@ interface SMachine {
   remainingMs: number | null
 }
 interface Payload {
-  student: { id: string; name: string; hasFiles: boolean }
+  student: { id: string; name: string; hasFiles: boolean; connectionSaver: boolean }
   classroom: {
     id: string
     name: string
@@ -33,6 +33,8 @@ interface Payload {
     lockMessage: string | null
     examMode: boolean
     examMessage: string | null
+    announcement: string | null
+    announcementAt: string | null
   }
   usage: { remaining: number; unlimited: boolean; sessionCap: number }
   machine: SMachine | null
@@ -49,6 +51,7 @@ export function StudentDashboard() {
   const [stopping, setStopping] = useState(false)
   const [filesOpen, setFilesOpen] = useState(false)
   const [flagBusy, setFlagBusy] = useState(false)
+  const [dismissedAnn, setDismissedAnn] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -170,6 +173,27 @@ export function StudentDashboard() {
         </div>
       </div>
 
+      {classroom.announcement && classroom.announcementAt !== dismissedAnn && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mt-5 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground"
+        >
+          <Megaphone className="mt-0.5 size-4 shrink-0 text-primary" />
+          <span className="flex-1">
+            <span className="font-semibold">Announcement: </span>
+            {classroom.announcement}
+          </span>
+          <button
+            onClick={() => setDismissedAnn(classroom.announcementAt)}
+            className="cursor-pointer rounded p-0.5 text-muted-foreground transition hover:text-foreground"
+            title="Dismiss"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
       {isRunning ? (
         <div className="mt-5 space-y-4">
           {classroom.examMode && (
@@ -200,6 +224,7 @@ export function StudentDashboard() {
             machine={machine!}
             onStop={classroom.examMode ? undefined : stop}
             stopping={stopping}
+            connectionSaver={student.connectionSaver}
           />
           <Card className="flex-row items-center gap-3 p-4">
             <FolderOpen className="size-5 shrink-0 text-primary" />

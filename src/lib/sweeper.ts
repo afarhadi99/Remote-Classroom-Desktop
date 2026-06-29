@@ -1,5 +1,5 @@
 import 'server-only'
-import { sweepExpiredMachines, runScheduledBoots } from './machines'
+import { sweepExpiredMachines, runScheduledBoots, runScheduledShutdowns } from './machines'
 
 const globalForSweeper = globalThis as unknown as { rcdSweeper?: NodeJS.Timeout }
 
@@ -20,6 +20,12 @@ export function startSweeper() {
       if (fired) console.log(`[sweeper] fired ${fired} scheduled class boot(s)`)
     } catch (err) {
       console.error('[sweeper] schedule error', err)
+    }
+    try {
+      const off = await runScheduledShutdowns()
+      if (off) console.log(`[sweeper] fired ${off} scheduled class shutdown(s)`)
+    } catch (err) {
+      console.error('[sweeper] bell-shutdown error', err)
     }
   }, 30_000)
   console.log('[sweeper] started (30s interval)')

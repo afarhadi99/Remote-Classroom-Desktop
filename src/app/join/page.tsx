@@ -14,6 +14,7 @@ export default function JoinPage() {
   const router = useRouter()
   const [code, setCode] = useState("")
   const [name, setName] = useState("")
+  const [pin, setPin] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,7 +23,7 @@ export default function JoinPage() {
     setLoading(true)
     setError(null)
     try {
-      await api("/api/auth/student/join", { body: { code, name } })
+      await api("/api/auth/student/join", { body: { code, name, pin: pin.trim() || undefined } })
       router.push("/student")
       router.refresh()
     } catch (err) {
@@ -60,6 +61,17 @@ export default function JoinPage() {
         <div className="space-y-1.5">
           <Label htmlFor="name">Your name</Label>
           <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ada Lovelace" required />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pin">PIN <span className="font-normal text-muted-foreground">(only if your teacher gave you one)</span></Label>
+          <Input
+            id="pin"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            placeholder="••••"
+            inputMode="numeric"
+            autoComplete="off"
+          />
         </div>
         {error && (
           <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">

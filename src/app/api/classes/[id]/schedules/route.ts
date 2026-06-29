@@ -25,6 +25,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       weekday: s.weekday,
       startMinute: s.startMinute,
       durationMin: s.durationMin,
+      endMinute: s.endMinute,
       os: s.os,
       enabled: s.enabled,
     })),
@@ -35,6 +36,7 @@ const createSchema = z.object({
   weekday: z.number().int().min(0).max(6),
   startMinute: z.number().int().min(0).max(1439),
   durationMin: z.number().int().min(5).max(480),
+  endMinute: z.number().int().min(0).max(1439).nullable().optional(),
   os: z.string().refine(isOsType, 'Invalid OS'),
 })
 

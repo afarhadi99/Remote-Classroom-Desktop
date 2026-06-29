@@ -1,11 +1,29 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Maximize2, Minimize2, ExternalLink, Power, Clock, RotateCw } from "lucide-react"
+import { Maximize2, Minimize2, ExternalLink, Power, Clock, RotateCw, Wifi, WifiLow } from "lucide-react"
 import { useToast } from "@/components/Toast"
 import { OsIcon, Spinner } from "@/components/brand"
-import { formatRemaining } from "@/lib/client"
+import { api, formatRemaining } from "@/lib/client"
 import { cn } from "@/lib/utils"
+
+// Rewrite a noVNC preview URL for low-bandwidth viewing: aggressive compression, lower
+// quality, and local scaling (no server-side resize round-trips). Same lever the monitor
+// wall already uses for view-only tiles.
+function applyConnectionSaver(url: string, saver: boolean): string {
+  if (!saver) return url
+  try {
+    const qIdx = url.indexOf("?")
+    if (qIdx === -1) return url
+    const sp = new URLSearchParams(url.slice(qIdx + 1))
+    sp.set("quality", "2")
+    sp.set("compression", "9")
+    sp.set("resize", "scale")
+    return `${url.slice(0, qIdx)}?${sp.toString()}`
+  } catch {
+    return url
+  }
+}
 
 export interface ViewerMachine {
   id: string
@@ -27,6 +45,7 @@ export function DesktopViewer({
   stopping,
   compact = false,
   watchMachineId,
+  connectionSaver,
 }: {
   machine: ViewerMachine
   onStop?: () => void
@@ -34,12 +53,16 @@ export function DesktopViewer({
   compact?: boolean
   /** When set (teacher views), heartbeats so the student sees a "being watched" banner. */
   watchMachineId?: string
+  /** Student low-bandwidth mode: initial value enables a toggle that persists the pref. */
+  connectionSaver?: boolean
 }) {
   const toast = useToast()
   const containerRef = useRef<HTMLDivElement>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [remainingMs, setRemainingMs] = useState<number | null>(null)
   const [iframeKey, setIframeKey] = useState(0)
+  const [saver, setSaver] = useState(!!connectionSaver)
+  const showSaverToggle = connectionSaver !== undefined // only in the student's own viewer
   const firedRef = useRef<Set<number>>(new Set())
   const lastExpiry = useRef<string | null>(null)
 
@@ -106,6 +129,17 @@ export function DesktopViewer({
     else document.exitFullscreen().catch(() => {})
   }
 
+  const toggleSaver = () => {
+    const next = !saver
+    setSaver(next)
+    setIframeKey((k) => k + 1) // remount the iframe with the new streaming params
+    api("/api/student/prefs", { method: "PATCH", body: { connectionSaver: next } }).catch(() => {})
+    toast.info(
+      next ? "Connection saver on" : "Connection saver off",
+      next ? "Lower quality for weak Wi-Fi — no reboot needed." : "Back to full quality.",
+    )
+  }
+
   const low = remainingMs !== null && remainingMs <= 5 * 60_000
   const critical = remainingMs !== null && remainingMs <= 60_000
 
@@ -146,6 +180,16 @@ export function DesktopViewer({
               {formatRemaining(remainingMs)}
             </span>
           )}
+          {showSaverToggle && (
+            <button
+              onClick={toggleSaver}
+              className={cn(ctlBtn, saver && "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30")}
+              title={saver ? "Connection saver ON (low bandwidth)" : "Turn on connection saver (low bandwidth)"}
+            >
+              {saver ? <WifiLow className="size-3.5" /> : <Wifi className="size-3.5" />}
+              <span className="hidden sm:inline">{saver ? "Saver on" : "Saver"}</span>
+            </button>
+          )}
           <button onClick={() => setIframeKey((k) => k + 1)} className={ctlBtn} title="Reconnect">
             <RotateCw className="size-3.5" />
           </button>
@@ -175,7 +219,7 @@ export function DesktopViewer({
         {machine.previewUrl ? (
           <iframe
             key={iframeKey}
-            src={machine.previewUrl}
+            src={applyConnectionSaver(machine.previewUrl, saver)}
             className="absolute inset-0 size-full"
             allow="clipboard-read; clipboard-write; fullscreen"
             title="Cloud desktop"

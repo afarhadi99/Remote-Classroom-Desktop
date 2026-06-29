@@ -29,6 +29,9 @@ import {
   Check,
   Flame,
   UsersRound,
+  Clock3,
+  Megaphone,
+  KeyRound,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -42,6 +45,7 @@ import { CollectModal } from "@/components/CollectModal"
 import { AttendanceModal } from "@/components/AttendanceModal"
 import { ScheduleModal } from "@/components/ScheduleModal"
 import { RosterModal } from "@/components/RosterModal"
+import { AnnounceModal } from "@/components/AnnounceModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -75,6 +79,7 @@ interface SStudent {
   usage?: { used: number; remaining: number; unlimited: boolean }
   flag: { kind: string | null; note: string | null; at: string } | null
   groupId: string | null
+  hasPin: boolean
 }
 interface SGroup {
   id: string
@@ -95,6 +100,8 @@ interface SClassroom {
   allowedDomains: string | null
   examMode: boolean
   examMessage: string | null
+  requireJoinPin: boolean
+  announcement: string | null
   locked: boolean
 }
 interface PlanInfo {
@@ -144,6 +151,8 @@ export function ClassManager({ classId }: { classId: string }) {
   const [attendanceOpen, setAttendanceOpen] = useState(false)
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [rosterOpen, setRosterOpen] = useState(false)
+  const [announceOpen, setAnnounceOpen] = useState(false)
+  const [pinBusy, setPinBusy] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const initialized = useRef(false)
 
@@ -230,6 +239,43 @@ export function ClassManager({ classId }: { classId: string }) {
       toast.error("Could not resolve", (e as Error).message)
     } finally {
       setResolvingFlags(false)
+    }
+  }
+
+  async function toggleRequirePin(on: boolean) {
+    setPinBusy(true)
+    try {
+      await api(`/api/classes/${classId}`, { method: "PATCH", body: { requireJoinPin: on } })
+      toast[on ? "info" : "success"](
+        on ? "Join PIN required" : "Join PIN no longer required",
+        on
+          ? "Students set a PIN on their next join; it's required after that."
+          : "Students can join with just the class code and their name.",
+      )
+      load()
+    } catch (e) {
+      toast.error("Could not change PIN setting", (e as Error).message)
+    } finally {
+      setPinBusy(false)
+    }
+  }
+
+  async function setStudentPin(studentId: string, name: string) {
+    const input = window.prompt(
+      `Set a join PIN for ${name} (4–12 characters). Leave blank to clear it so they set their own next time.`,
+    )
+    if (input === null) return
+    const pin = input.trim()
+    if (pin && (pin.length < 4 || pin.length > 12)) {
+      toast.error("PIN must be 4–12 characters")
+      return
+    }
+    try {
+      await api(`/api/students/${studentId}/pin`, { method: "POST", body: { pin: pin || null } })
+      toast.success(pin ? `PIN set for ${name}` : `PIN cleared for ${name}`)
+      load()
+    } catch (e) {
+      toast.error("Could not update PIN", (e as Error).message)
     }
   }
 
@@ -330,6 +376,19 @@ export function ClassManager({ classId }: { classId: string }) {
     }
   }
 
+  async function extendTime(machineId: string, deltaMinutes: number) {
+    try {
+      await api(`/api/machines/${machineId}/time`, { method: "PATCH", body: { deltaMinutes } })
+      toast.success(
+        deltaMinutes >= 0 ? `Added ${deltaMinutes} minutes` : `Removed ${Math.abs(deltaMinutes)} minutes`,
+        "The countdown and shutdown timer updated.",
+      )
+      load()
+    } catch (err) {
+      toast.error("Could not adjust time", (err as Error).message)
+    }
+  }
+
   async function stopMachine(machineId: string, studentId: string) {
     setBusy((b) => ({ ...b, [studentId]: true }))
     try {
@@ -372,6 +431,12 @@ export function ClassManager({ classId }: { classId: string }) {
               Watching {selectedMachine.studentName ?? `${selectedMachine.groupName} group`}&apos;s desktop
             </h2>
             <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => extendTime(selectedMachine.id, -5)} title="Trim 5 minutes">
+                <Clock3 className="size-3.5" /> −5 min
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => extendTime(selectedMachine.id, 10)} title="Grant 10 more minutes">
+                <Clock3 className="size-3.5" /> +10 min
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -409,6 +474,15 @@ export function ClassManager({ classId }: { classId: string }) {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant={classroom.announcement ? "ink" : "outline"}
+                size="sm"
+                onClick={() => setAnnounceOpen(true)}
+                title={classroom.announcement ? `Announcement live: ${classroom.announcement}` : "Post an announcement"}
+              >
+                <Megaphone className="size-3.5" />
+                {classroom.announcement ? "Announcing" : "Announce"}
+              </Button>
               <Button
                 variant={classroom.locked ? "ink" : "outline"}
                 size="sm"
@@ -706,6 +780,17 @@ export function ClassManager({ classId }: { classId: string }) {
                 <Switch checked={examMode} onCheckedChange={toggleExam} disabled={examBusy} />
               </label>
 
+              <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-secondary/40 p-3.5">
+                <span className="text-sm">
+                  <span className="font-medium text-foreground">Require a PIN to join</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Stops students from joining as a classmate. Each student sets a PIN on their next join;
+                    reset it from their card if they forget.
+                  </span>
+                </span>
+                <Switch checked={classroom.requireJoinPin} onCheckedChange={toggleRequirePin} disabled={pinBusy} />
+              </label>
+
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button variant="ink" onClick={bootAll} disabled={bootingAll || students.length === 0}>
                   {bootingAll ? <Spinner /> : <Rocket className="size-4" />} Boot all desktops
@@ -769,6 +854,9 @@ export function ClassManager({ classId }: { classId: string }) {
                   onStop={(mid) => stopMachine(mid, s.id)}
                   onOpen={(mid) => setSelectedId(mid)}
                   onFiles={(mid) => setFilesMachine({ id: mid, name: s.name })}
+                  onExtend={(mid) => extendTime(mid, 10)}
+                  requirePin={classroom.requireJoinPin}
+                  onPin={() => setStudentPin(s.id, s.name)}
                 />
               ))}
             </div>
@@ -798,6 +886,13 @@ export function ClassManager({ classId }: { classId: string }) {
         onOpenChange={setScheduleOpen}
       />
       <RosterModal classId={classId} open={rosterOpen} onOpenChange={setRosterOpen} onAdded={load} />
+      <AnnounceModal
+        classId={classId}
+        current={classroom.announcement}
+        open={announceOpen}
+        onOpenChange={setAnnounceOpen}
+        onChanged={load}
+      />
     </main>
   )
 }
@@ -810,6 +905,9 @@ function StudentCard({
   onStop,
   onOpen,
   onFiles,
+  onExtend,
+  requirePin,
+  onPin,
 }: {
   student: SStudent
   monthlyUnlimited: boolean
@@ -818,6 +916,9 @@ function StudentCard({
   onStop: (machineId: string) => void
   onOpen: (machineId: string) => void
   onFiles: (machineId: string) => void
+  onExtend: (machineId: string) => void
+  requirePin: boolean
+  onPin: () => void
 }) {
   const m = student.machine
   const isActive = m && ACTIVE.includes(m.status)
@@ -847,6 +948,20 @@ function StudentCard({
               <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
                 <UsersRound className="size-3" /> Group
               </span>
+            )}
+            {requirePin && (
+              <button
+                onClick={onPin}
+                title="Set or reset this student's join PIN"
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition",
+                  student.hasPin
+                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                    : "bg-amber-100 text-amber-700 hover:bg-amber-200",
+                )}
+              >
+                <KeyRound className="size-3" /> {student.hasPin ? "PIN set" : "No PIN"}
+              </button>
             )}
           </div>
         </div>
@@ -881,6 +996,9 @@ function StudentCard({
           <>
             <Button variant="ink" size="sm" className="flex-1" onClick={() => onOpen(m.id)}>
               <Monitor className="size-3.5" /> Watch
+            </Button>
+            <Button variant="outline" size="icon-sm" onClick={() => onExtend(m.id)} title="Add 10 minutes">
+              <Clock3 className="size-3.5" />
             </Button>
             <Button variant="outline" size="icon-sm" onClick={() => onFiles(m.id)} title="Browse files">
               <FolderOpen className="size-3.5" />

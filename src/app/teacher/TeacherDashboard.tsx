@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Trash2, Users, MonitorPlay, ArrowRight, Sparkles, Lock } from "lucide-react"
+import { Plus, Trash2, Users, MonitorPlay, ArrowRight, Sparkles, Lock, Copy } from "lucide-react"
 import { Spinner, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
 import { OsPicker, DurationPicker } from "@/components/Pickers"
@@ -143,6 +143,7 @@ export function TeacherDashboard({ teacherName }: { teacherName: string }) {
 function ClassCard({ c, onDeleted }: { c: ClassSummary; onDeleted: () => void }) {
   const toast = useToast()
   const [deleting, setDeleting] = useState(false)
+  const [cloning, setCloning] = useState(false)
 
   async function remove() {
     if (!confirm(`Delete "${c.name}"? This shuts down all its desktops and removes students.`)) return
@@ -157,6 +158,19 @@ function ClassCard({ c, onDeleted }: { c: ClassSummary; onDeleted: () => void })
     }
   }
 
+  async function clone() {
+    setCloning(true)
+    try {
+      const res = await api<{ classroom: { joinCode: string } }>(`/api/classes/${c.id}/clone`, { method: "POST" })
+      toast.success("Class duplicated", `New join code: ${res.classroom.joinCode}`)
+      onDeleted() // reloads the class list
+    } catch (err) {
+      toast.error("Could not duplicate", (err as Error).message)
+    } finally {
+      setCloning(false)
+    }
+  }
+
   return (
     <Card className="group gap-0 py-0 transition hover:shadow-md">
       <div className="flex items-start justify-between p-5 pb-3">
@@ -165,14 +179,24 @@ function ClassCard({ c, onDeleted }: { c: ClassSummary; onDeleted: () => void })
             {c.name}
           </h3>
         </Link>
-        <button
-          onClick={remove}
-          disabled={deleting}
-          className="-mr-1 -mt-1 cursor-pointer rounded-md p-1.5 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-          title="Delete class"
-        >
-          {deleting ? <Spinner className="size-4" /> : <Trash2 className="size-4" />}
-        </button>
+        <div className="-mr-1 -mt-1 flex items-center">
+          <button
+            onClick={clone}
+            disabled={cloning}
+            className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition hover:bg-accent hover:text-primary"
+            title="Duplicate this class"
+          >
+            {cloning ? <Spinner className="size-4" /> : <Copy className="size-4" />}
+          </button>
+          <button
+            onClick={remove}
+            disabled={deleting}
+            className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+            title="Delete class"
+          >
+            {deleting ? <Spinner className="size-4" /> : <Trash2 className="size-4" />}
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 px-5">

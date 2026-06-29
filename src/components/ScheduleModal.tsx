@@ -22,6 +22,7 @@ interface Slot {
   weekday: number
   startMinute: number
   durationMin: number
+  endMinute: number | null
   os: string
   enabled: boolean
 }
@@ -54,6 +55,7 @@ export function ScheduleModal({
   const [weekday, setWeekday] = useState(1)
   const [time, setTime] = useState("09:00")
   const [duration, setDuration] = useState(Math.min(45, maxMinutes))
+  const [endTime, setEndTime] = useState("")
   const [os, setOs] = useState<OsType>("linux")
   const [saving, setSaving] = useState(false)
 
@@ -75,8 +77,13 @@ export function ScheduleModal({
     setSaving(true)
     try {
       const [h, m] = time.split(":").map(Number)
+      let endMinute: number | null = null
+      if (endTime) {
+        const [eh, em] = endTime.split(":").map(Number)
+        endMinute = eh * 60 + em
+      }
       await api(`/api/classes/${classId}/schedules`, {
-        body: { weekday, startMinute: h * 60 + m, durationMin: Math.min(duration, maxMinutes), os },
+        body: { weekday, startMinute: h * 60 + m, durationMin: Math.min(duration, maxMinutes), endMinute, os },
       })
       toast.success("Slot added")
       load()
@@ -104,8 +111,9 @@ export function ScheduleModal({
             <CalendarClock className="size-5 text-primary" /> Class schedule
           </DialogTitle>
           <DialogDescription>
-            Desktops boot automatically a couple minutes before each slot and shut down when the
-            session ends. Times are in the server&apos;s local timezone.
+            Desktops boot automatically a couple minutes before each slot. Set an optional bell-end
+            time to shut the whole class down at period&apos;s end, even for late booters. Times are in
+            the server&apos;s local timezone.
           </DialogDescription>
         </DialogHeader>
 
@@ -123,6 +131,7 @@ export function ScheduleModal({
                 <span className="font-medium text-foreground">{DAYS[s.weekday]}</span>
                 <span className="text-muted-foreground">
                   {fmt12(s.startMinute)} · {formatDurationLabel(s.durationMin)}
+                  {s.endMinute != null && <span className="text-amber-600"> · bell {fmt12(s.endMinute)}</span>}
                 </span>
                 <button
                   onClick={() => remove(s.id)}
@@ -136,7 +145,7 @@ export function ScheduleModal({
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 rounded-lg border border-dashed border-border p-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 rounded-lg border border-dashed border-border p-3 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label className="text-xs">Day</Label>
             <select
@@ -163,6 +172,10 @@ export function ScheduleModal({
               onChange={(e) => setDuration(Number(e.target.value))}
               className="h-10"
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Bell end <span className="text-muted-foreground">(optional)</span></Label>
+            <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-10" />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">OS</Label>

@@ -54,7 +54,12 @@ export async function GET() {
   }
 
   return json({
-    student: { id: student.id, name: student.name, hasFiles: !!studentRow.volumeId },
+    student: {
+      id: student.id,
+      name: student.name,
+      hasFiles: !!studentRow.volumeId,
+      connectionSaver: studentRow.connectionSaver,
+    },
     classroom: {
       id: classroom.id,
       name: classroom.name,
@@ -65,6 +70,8 @@ export async function GET() {
       lockMessage: classroom.lockMessage,
       examMode: classroom.examMode,
       examMessage: classroom.examMessage,
+      announcement: classroom.announcement,
+      announcementAt: classroom.announcementAt ? classroom.announcementAt.toISOString() : null,
     },
     // No pricing is ever exposed to students — just their remaining time.
     usage: {

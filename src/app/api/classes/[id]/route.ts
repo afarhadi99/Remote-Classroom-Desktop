@@ -64,6 +64,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       allowedDomains: classroom.allowedDomains,
       examMode: classroom.examMode,
       examMessage: classroom.examMessage,
+      requireJoinPin: classroom.requireJoinPin,
+      announcement: classroom.announcement,
       locked: !!classroom.lockedAt,
       createdAt: classroom.createdAt.toISOString(),
     },
@@ -88,6 +90,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           ? { kind: s.flagKind, note: s.flagNote, at: s.flaggedAt.toISOString() }
           : null,
         groupId: s.groupId,
+        hasPin: !!s.joinPin,
       }
     }),
     groups: groups.map((g) => ({
@@ -115,6 +118,7 @@ const patchSchema = z.object({
   allowedDomains: z.string().max(2000).nullable().optional(),
   examMode: z.boolean().optional(),
   examMessage: z.string().max(200).nullable().optional(),
+  requireJoinPin: z.boolean().optional(),
 })
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
