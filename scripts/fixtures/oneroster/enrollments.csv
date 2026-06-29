@@ -1,0 +1,7 @@
+sourcedId,classSourcedId,userSourcedId,role,status
+e1,c-cs1,u-ada,student,active
+e2,c-cs1,u-alan,student,active
+e3,c-cs1,u-grace,student,active
+e4,c-bio1,u-linus,student,active
+e5,c-bio1,u-kath,student,active
+e6,c-cs1,t-curie,teacher,active

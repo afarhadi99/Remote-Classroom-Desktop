@@ -24,7 +24,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const [students, machines, groups] = await Promise.all([
     prisma.student.findMany({
-      where: { classroomId: id },
+      where: { classroomId: id, archivedAt: null },
       orderBy: { name: 'asc' },
       include: { machines: { orderBy: { createdAt: 'desc' }, take: 1, include: { student: true } } },
     }),

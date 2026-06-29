@@ -1,0 +1,7 @@
+sourcedId,role,givenName,familyName,email,status
+u-ada,student,Ada,Lovelace,ada@school.edu,active
+u-alan,student,Alan,Turing,alan@school.edu,active
+u-grace,student,Grace,Hopper,grace@school.edu,active
+u-linus,student,Linus,Torvalds,linus@school.edu,active
+u-kath,student,Katherine,Johnson,kath@school.edu,active
+t-curie,teacher,Marie,Curie,curie@school.edu,active

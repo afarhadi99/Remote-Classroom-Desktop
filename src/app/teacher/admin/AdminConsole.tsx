@@ -23,6 +23,7 @@ import { api, formatRemaining } from "@/lib/client"
 import { initialsOf } from "@/lib/utils"
 import { ApiKeysPanel } from "./ApiKeysPanel"
 import { WebhooksPanel } from "./WebhooksPanel"
+import { OneRosterPanel } from "./OneRosterPanel"
 
 interface Live {
   machineId: string
@@ -279,6 +280,7 @@ export function AdminConsole() {
         )}
       </Card>
 
+      <OneRosterPanel />
       <ApiKeysPanel />
       <WebhooksPanel />
     </main>

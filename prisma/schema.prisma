@@ -42,6 +42,8 @@ model Classroom {
   defaultOs          String    @default("linux") // linux | windows
   // Golden image: a specific Daytona snapshot to boot desktops from (null = OS default).
   snapshot           String?
+  // OneRoster/SIS identity for idempotent roster sync (null = manually created).
+  sourcedId          String?
   defaultDurationMin Int       @default(60) // time limit applied to machines
   allowStudentBoot   Boolean   @default(true) // students can boot their own machine
   idleTimeoutMin     Int       @default(20) // auto-stop a desktop after this many idle minutes (0 = never)
@@ -67,6 +69,8 @@ model Classroom {
   events             ClassEvent[]
   schedules          ClassSchedule[]
   groups             ClassGroup[]
+
+  @@index([teacherId, sourcedId])
 }
 
 // A group workstation: several students share one desktop + one persistent volume
@@ -211,7 +215,12 @@ model Student {
   // Low-bandwidth desktop streaming preference (persisted per student).
   connectionSaver Boolean @default(false)
 
+  // OneRoster/SIS identity + soft-delete marker for roster sync de-provisioning.
+  sourcedId  String?
+  archivedAt DateTime?
+
   @@unique([classroomId, name]) // one identity per name within a class
+  @@index([sourcedId])
 }
 
 // One machine row per (active) desktop. Status drives the UI lifecycle.

@@ -130,6 +130,13 @@ export async function bootMachineForStudent(params: {
   if (!student) {
     return { ok: false, reason: 'Student not found.', studentReason: 'Something went wrong.' }
   }
+  if (student.archivedAt) {
+    return {
+      ok: false,
+      reason: 'That student was removed by a roster sync.',
+      studentReason: 'Your account is no longer active in this class. Ask your teacher.',
+    }
+  }
 
   const teacher = student.classroom.teacher
   const plan = getPlan(teacher.plan)
