@@ -55,3 +55,5 @@ Standards-based, shipped and verified end-to-end locally (simulating the LMS/SIS
 | OneRoster 1.1 CSV roster sync + de-provisioning | Clever/ClassLink/PowerSchool/SIS | ☑ |
 | LTI 1.3 Tool Provider (OIDC launch + JIT) | Canvas/Schoology/Moodle/Blackboard/D2L | ☑ |
 | Assignment hand-back (graded work + score record) | Teaching loop / LTI AGS-ready | ☑ |
+| LTI Advantage: NRPS roster pull + AGS grade passback | Two-way LMS sync | ☑ |
+| Login/PIN brute-force throttle + lockout | Account security | ☑ |
