@@ -18,6 +18,7 @@ model Teacher {
   createdAt DateTime    @default(now())
   classes   Classroom[]
   templates ClassTemplate[]
+  apiKeys   ApiKey[]
 
   // Billing / plan
   plan                 String    @default("free") // free | pro
@@ -114,6 +115,24 @@ model ClassEvent {
   createdAt   DateTime  @default(now())
 
   @@index([classroomId, createdAt])
+}
+
+// Scoped API key for the public REST API. Only a SHA-256 hash of the secret is stored;
+// the plaintext "rcd_sk_..." is shown to the teacher exactly once at creation.
+model ApiKey {
+  id         String    @id @default(cuid())
+  teacherId  String
+  teacher    Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  name       String
+  scopes     String // comma-separated scopes, or "*" for all
+  hashedKey  String    @unique
+  prefix     String // e.g. "rcd_sk_AbC1" — safe to display
+  last4      String
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([teacherId])
 }
 
 // Reusable class blueprint a teacher can apply when creating a class.

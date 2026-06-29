@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/components/Toast"
 import { api, formatRemaining } from "@/lib/client"
 import { initialsOf } from "@/lib/utils"
+import { ApiKeysPanel } from "./ApiKeysPanel"
 
 interface Live {
   machineId: string
@@ -276,6 +277,8 @@ export function AdminConsole() {
           </div>
         )}
       </Card>
+
+      <ApiKeysPanel />
     </main>
   )
 }
