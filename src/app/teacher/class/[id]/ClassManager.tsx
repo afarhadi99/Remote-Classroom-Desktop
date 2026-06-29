@@ -33,6 +33,7 @@ import {
   Megaphone,
   KeyRound,
   ClipboardList,
+  GraduationCap,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -105,6 +106,7 @@ interface SClassroom {
   requireJoinPin: boolean
   announcement: string | null
   locked: boolean
+  lms: { roster: boolean; grades: boolean }
 }
 interface PlanInfo {
   id: "free" | "pro"
@@ -156,6 +158,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [rosterOpen, setRosterOpen] = useState(false)
   const [announceOpen, setAnnounceOpen] = useState(false)
   const [pinBusy, setPinBusy] = useState(false)
+  const [nrpsBusy, setNrpsBusy] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const initialized = useRef(false)
 
@@ -242,6 +245,22 @@ export function ClassManager({ classId }: { classId: string }) {
       toast.error("Could not resolve", (e as Error).message)
     } finally {
       setResolvingFlags(false)
+    }
+  }
+
+  async function syncFromLms() {
+    setNrpsBusy(true)
+    try {
+      const r = await api<{ added: number; updated: number; archived: number }>(
+        `/api/classes/${classId}/nrps-sync`,
+        { method: "POST" },
+      )
+      toast.success("Roster synced from LMS", `+${r.added} added, ${r.updated} updated, ${r.archived} archived.`)
+      load()
+    } catch (e) {
+      toast.error("Could not sync from LMS", (e as Error).message)
+    } finally {
+      setNrpsBusy(false)
     }
   }
 
@@ -820,6 +839,11 @@ export function ClassManager({ classId }: { classId: string }) {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Students</h2>
             <div className="flex gap-2">
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleHandoutFile} />
+              {classroom.lms.roster && (
+                <Button variant="outline" size="sm" onClick={syncFromLms} disabled={nrpsBusy}>
+                  {nrpsBusy ? <Spinner className="size-3.5" /> : <GraduationCap className="size-3.5" />} Sync from LMS
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => setRosterOpen(true)}>
                 <UserPlus className="size-3.5" /> Add students
               </Button>

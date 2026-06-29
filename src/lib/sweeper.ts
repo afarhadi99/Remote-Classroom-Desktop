@@ -1,6 +1,7 @@
 import 'server-only'
 import { sweepExpiredMachines, runScheduledBoots, runScheduledShutdowns } from './machines'
 import { deliverDueWebhooks } from './webhooks'
+import { drainGradeJobs } from './lti-services'
 
 const globalForSweeper = globalThis as unknown as { rcdSweeper?: NodeJS.Timeout }
 
@@ -33,6 +34,12 @@ export function startSweeper() {
       if (delivered) console.log(`[sweeper] processed ${delivered} webhook deliver(y/ies)`)
     } catch (err) {
       console.error('[sweeper] webhook error', err)
+    }
+    try {
+      const graded = await drainGradeJobs()
+      if (graded) console.log(`[sweeper] processed ${graded} LTI grade job(s)`)
+    } catch (err) {
+      console.error('[sweeper] grade-passback error', err)
     }
   }, 30_000)
   console.log('[sweeper] started (30s interval)')

@@ -1,6 +1,7 @@
 import { json } from '@/lib/api'
 import { sweepExpiredMachines, runScheduledBoots, runScheduledShutdowns } from '@/lib/machines'
 import { deliverDueWebhooks } from '@/lib/webhooks'
+import { drainGradeJobs } from '@/lib/lti-services'
 
 // Enforce hard time limits + fire due schedules + flush the webhook queue. Called by the
 // in-process sweeper and can also be hit by an external cron for serverless deployments.
@@ -9,7 +10,8 @@ async function run() {
   const fired = await runScheduledBoots()
   const shutdowns = await runScheduledShutdowns()
   const webhooks = await deliverDueWebhooks()
-  return { ok: true, ...res, scheduledBoots: fired, scheduledShutdowns: shutdowns, webhooksProcessed: webhooks }
+  const grades = await drainGradeJobs()
+  return { ok: true, ...res, scheduledBoots: fired, scheduledShutdowns: shutdowns, webhooksProcessed: webhooks, gradeJobsProcessed: grades }
 }
 
 export async function GET() {

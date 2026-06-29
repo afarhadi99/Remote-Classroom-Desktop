@@ -67,6 +67,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       requireJoinPin: classroom.requireJoinPin,
       announcement: classroom.announcement,
       locked: !!classroom.lockedAt,
+      lms: { roster: !!classroom.ltiNrpsUrl, grades: !!classroom.ltiAgsLineitemsUrl },
       createdAt: classroom.createdAt.toISOString(),
     },
     plan: {

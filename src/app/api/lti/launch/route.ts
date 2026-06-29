@@ -56,6 +56,9 @@ export async function POST(req: Request) {
   if (!deploymentAllowed(platform.deploymentIds, deploymentId)) return fail('Deployment not allowed.')
 
   const role = rolesToRole(payload[LTI.roles])
+  // LTI Advantage service endpoints (NRPS roster pull + AGS grade passback), if the platform grants them.
+  const nrpsUrl = (payload['https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice'] as { context_memberships_url?: string } | undefined)?.context_memberships_url ?? null
+  const agsUrl = (payload['https://purl.imsglobal.org/spec/lti-ags/claim/endpoint'] as { lineitems?: string } | undefined)?.lineitems ?? null
   const ctx = (payload[LTI.context] as { id?: string; title?: string } | undefined) || {}
   const contextId = String(ctx.id || (payload[LTI.resourceLink] as { id?: string })?.id || 'lti-context')
   const title = String(ctx.title || 'LMS Class').slice(0, 80)
@@ -92,6 +95,10 @@ export async function POST(req: Request) {
         data: { teacherId: teacher.id, name: title, joinCode, ltiPlatformId: platform.id, ltiContextId: contextId },
       })
     }
+    // Refresh the Advantage service URLs each launch (they can rotate per deployment).
+    if (nrpsUrl !== classroom.ltiNrpsUrl || agsUrl !== classroom.ltiAgsLineitemsUrl) {
+      await prisma.classroom.update({ where: { id: classroom.id }, data: { ltiNrpsUrl: nrpsUrl, ltiAgsLineitemsUrl: agsUrl } })
+    }
     await setSessionCookie({ role: 'teacher', id: teacher.id, name: teacher.name, email: teacher.email })
     return NextResponse.redirect(`${origin}/teacher/class/${classroom.id}`, 302)
   }
@@ -102,13 +109,14 @@ export async function POST(req: Request) {
   })
   if (!classroom) return fail('This activity is not set up yet — ask your teacher to open it first.', 409)
 
-  let student = await prisma.student.findUnique({
-    where: { classroomId_name: { classroomId: classroom.id, name: displayName } },
-  })
+  // Prefer matching by LTI user id (stable), falling back to name.
+  let student =
+    (await prisma.student.findFirst({ where: { classroomId: classroom.id, ltiUserId: sub } })) ||
+    (await prisma.student.findUnique({ where: { classroomId_name: { classroomId: classroom.id, name: displayName } } }))
   if (!student) {
-    student = await prisma.student.create({ data: { classroomId: classroom.id, name: displayName } })
-  } else if (student.archivedAt) {
-    await prisma.student.update({ where: { id: student.id }, data: { archivedAt: null } })
+    student = await prisma.student.create({ data: { classroomId: classroom.id, name: displayName, ltiUserId: sub } })
+  } else if (student.archivedAt || !student.ltiUserId) {
+    await prisma.student.update({ where: { id: student.id }, data: { archivedAt: null, ltiUserId: sub } })
   }
   await setSessionCookie({ role: 'student', id: student.id, name: student.name, classroomId: classroom.id })
   return NextResponse.redirect(`${origin}/student`, 302)

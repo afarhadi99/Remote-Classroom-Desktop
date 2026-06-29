@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
 import { getDaytona, VOLUME_MOUNT_PATH } from '@/lib/daytona'
 import { logEvent } from '@/lib/events'
+import { enqueueGradePassback } from '@/lib/lti-services'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -65,6 +66,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     update: { status: 'graded', score, scoreMax, feedback: feedback ?? null },
     create: { assignmentId: aid, studentId, status: 'graded', score, scoreMax, feedback: feedback ?? null },
   })
+
+  // If this class is LTI AGS-linked, push the grade to the LMS gradebook (durable, retried).
+  let queuedPassback = false
+  if (score != null) {
+    queuedPassback = await enqueueGradePassback({
+      classroomId: id,
+      assignmentId: aid,
+      studentId,
+      scoreGiven: score,
+      scoreMaximum: scoreMax ?? 100,
+      comment: feedback ?? null,
+    })
+  }
   await logEvent({
     classroomId: id,
     studentId,
@@ -73,5 +87,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     message: `Returned "${assignment.title}" to ${student.name}${score != null ? ` (${score}${scoreMax != null ? '/' + scoreMax : ''})` : ''}`,
   })
 
-  return json({ ok: true, wroteToDesktop, submission: { status: submission.status, score: submission.score } })
+  return json({ ok: true, wroteToDesktop, queuedPassback, submission: { status: submission.status, score: submission.score } })
 }
