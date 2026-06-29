@@ -29,3 +29,17 @@ Tracking the 20-feature roadmap. Implemented across `/loop` iterations.
 
 **All 20 features shipped.** Each was built and verified end-to-end against real Daytona
 desktops, with every sandbox cleaned up after testing.
+
+## v2 additions
+
+A second batch, brainstormed and adversarially scored by a multi-agent workflow, then
+implemented and verified end-to-end the same way:
+
+| Feature | Category | Status |
+|---------|----------|--------|
+| Per-student extend/trim time during a live session | Classroom management | ☑ |
+| Per-student join PINs (opt-in) — stops roster impersonation | Access control | ☑ |
+| Teacher text announcements (student banner, `aria-live`) | Communication | ☑ |
+| Bell-schedule auto-shutdown at class-period end | Time & cost control | ☑ |
+| One-click class clone / duplicate | Admin | ☑ |
+| Low-bandwidth connection-saver desktop mode | Low-bandwidth access | ☑ |

@@ -110,6 +110,17 @@ On top of the core above, a 20-item teaching/operations roadmap is implemented a
 - 🛠️ **Org-wide admin console** — live totals, every running desktop, raised hands across all classes, and guardrail usage on one screen.
 - 💼 **Annual billing & seat packs**, plus a documented **SSO** integration point for districts.
 
+### Recently added (v2)
+
+A second batch, brainstormed and scored by a multi-agent workflow, then verified end-to-end:
+
+- ⏱️ **Extend / trim time live** — grant a student "+10 min" (IEP/504 extra time, late arrivers) or trim a session without raising the whole class default. The countdown, warnings, and hard-limit sweeper all follow automatically; a 5-minute floor keeps a trim from killing a session instantly.
+- 🔐 **Join PINs** — an opt-in per-class setting that requires each student to set/enter a PIN, closing roster-name impersonation. Students self-claim on first join; teachers can reset a forgotten PIN from the roster.
+- 📣 **Announcements** — post a re-readable text banner to every student's screen (wrapped in `aria-live` for screen readers) — lighter than a lock or a broadcast stream.
+- 🔔 **Bell-schedule shutdown** — set an optional end time on a recurring slot so the whole class shuts down at the bell, even for students who booted late into the period.
+- ⧉ **Class clone** — duplicate a class's full configuration (OS, golden image, time/idle limits, internet policy, exam + PIN settings, recurring schedule) into a fresh section with a new join code in one click.
+- 📶 **Connection saver** — a one-tap low-bandwidth desktop mode (aggressive compression, local scaling) for weak Chromebook Wi-Fi; rebuilds the stream client-side with no reboot and no extra metered minutes.
+
 ---
 
 ## Plans &amp; pricing
