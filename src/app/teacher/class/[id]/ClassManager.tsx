@@ -32,6 +32,7 @@ import {
   Clock3,
   Megaphone,
   KeyRound,
+  ClipboardList,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -46,6 +47,7 @@ import { AttendanceModal } from "@/components/AttendanceModal"
 import { ScheduleModal } from "@/components/ScheduleModal"
 import { RosterModal } from "@/components/RosterModal"
 import { AnnounceModal } from "@/components/AnnounceModal"
+import { AssignmentsModal } from "@/components/AssignmentsModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -148,6 +150,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [lockBusy, setLockBusy] = useState(false)
   const [handoutBusy, setHandoutBusy] = useState(false)
   const [collectOpen, setCollectOpen] = useState(false)
+  const [assignmentsOpen, setAssignmentsOpen] = useState(false)
   const [attendanceOpen, setAttendanceOpen] = useState(false)
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [rosterOpen, setRosterOpen] = useState(false)
@@ -826,6 +829,9 @@ export function ClassManager({ classId }: { classId: string }) {
               <Button variant="outline" size="sm" onClick={() => setCollectOpen(true)}>
                 <Inbox className="size-3.5" /> Collect work
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setAssignmentsOpen(true)}>
+                <ClipboardList className="size-3.5" /> Assignments
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setAttendanceOpen(true)}>
                 <CalendarDays className="size-3.5" /> Attendance
               </Button>
@@ -892,6 +898,12 @@ export function ClassManager({ classId }: { classId: string }) {
         open={announceOpen}
         onOpenChange={setAnnounceOpen}
         onChanged={load}
+      />
+      <AssignmentsModal
+        classId={classId}
+        students={students.map((s) => ({ id: s.id, name: s.name }))}
+        open={assignmentsOpen}
+        onOpenChange={setAssignmentsOpen}
       />
     </main>
   )

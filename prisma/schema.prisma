@@ -78,9 +78,39 @@ model Classroom {
   events             ClassEvent[]
   schedules          ClassSchedule[]
   groups             ClassGroup[]
+  assignments        Assignment[]
 
   @@unique([ltiPlatformId, ltiContextId])
   @@index([teacherId, sourcedId])
+}
+
+// An assignment closes the assign -> collect -> return loop. Submission.score is the canonical
+// grade record that LTI AGS passback reads.
+model Assignment {
+  id            String       @id @default(cuid())
+  classroomId   String
+  classroom     Classroom    @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  title         String
+  collectFolder String       @default("Turn-in")
+  createdAt     DateTime     @default(now())
+  submissions   Submission[]
+
+  @@index([classroomId])
+}
+
+model Submission {
+  id           String     @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status       String     @default("assigned") // assigned | collected | returned | graded
+  score        Int?
+  scoreMax     Int?
+  feedback     String?
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([assignmentId, studentId])
 }
 
 // A registered LTI 1.3 platform (LMS): Canvas, Schoology, Moodle, Blackboard, D2L, etc.
@@ -262,6 +292,7 @@ model Student {
   // OneRoster/SIS identity + soft-delete marker for roster sync de-provisioning.
   sourcedId  String?
   archivedAt DateTime?
+  submissions Submission[]
 
   @@unique([classroomId, name]) // one identity per name within a class
   @@index([sourcedId])
