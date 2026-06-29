@@ -73,3 +73,7 @@ export function hashPassword(plain: string): Promise<string> {
 export function verifyPassword(plain: string, hash: string): Promise<boolean> {
   return bcrypt.compare(plain, hash)
 }
+
+// A valid-format bcrypt hash to compare against when a user/student doesn't exist, so login
+// timing doesn't leak whether an account exists. The result is always ignored.
+export const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMy.MH/rMH7K0z3rNVqOQ1pImQyR0a3wQ8K'

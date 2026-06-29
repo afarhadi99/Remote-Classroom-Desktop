@@ -4,6 +4,7 @@ import { setSessionCookie, hashPassword, verifyPassword } from '@/lib/auth'
 import { apiError, json } from '@/lib/api'
 import { normalizeJoinCode } from '@/lib/utils'
 import { getPlan, isUnlimited } from '@/lib/plans'
+import { clientIp, throttleKey, checkLock, recordFailure, recordSuccess } from '@/lib/throttle'
 
 const schema = z.object({
   code: z.string().trim().min(1),
@@ -33,9 +34,17 @@ export async function POST(req: Request) {
   // Per-student PIN gate: without it, anyone could type a classmate's name and open their
   // machine + persistent files. When the class requires a PIN, a returning student must match
   // their stored PIN; a first-time (or pre-PIN) student claims their name with the PIN they enter.
+  const lockKey = throttleKey('student-join', clientIp(req), `${classroom.id}:${name}`)
   if (classroom.requireJoinPin) {
+    const lock = checkLock(lockKey)
+    if (lock.locked) {
+      const res = apiError('Too many attempts. Ask your teacher and try again shortly.', 429)
+      res.headers.set('Retry-After', String(lock.retryAfterSec))
+      return res
+    }
     if (!pin) return apiError('This class requires a PIN to join. Ask your teacher for your PIN.', 401)
     if (existing?.joinPin && !(await verifyPassword(pin, existing.joinPin))) {
+      recordFailure(lockKey)
       return apiError('That PIN is incorrect.', 401)
     }
   }
@@ -63,6 +72,7 @@ export async function POST(req: Request) {
     create: { classroomId: classroom.id, name, ...(pinHash ? { joinPin: pinHash } : {}) },
   })
 
+  recordSuccess(lockKey)
   await setSessionCookie({
     role: 'student',
     id: student.id,
