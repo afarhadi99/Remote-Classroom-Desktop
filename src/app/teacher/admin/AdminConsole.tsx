@@ -24,6 +24,7 @@ import { initialsOf } from "@/lib/utils"
 import { ApiKeysPanel } from "./ApiKeysPanel"
 import { WebhooksPanel } from "./WebhooksPanel"
 import { OneRosterPanel } from "./OneRosterPanel"
+import { LtiPanel } from "./LtiPanel"
 
 interface Live {
   machineId: string
@@ -280,6 +281,7 @@ export function AdminConsole() {
         )}
       </Card>
 
+      <LtiPanel />
       <OneRosterPanel />
       <ApiKeysPanel />
       <WebhooksPanel />
