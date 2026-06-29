@@ -123,6 +123,22 @@ A second batch, brainstormed and scored by a multi-agent workflow, then verified
 
 ---
 
+## Integrations
+
+Standards-based integrations so the product drops into a district's existing LMS/SIS stack. Each
+was built to spec and verified end-to-end locally by simulating the other side (a self-signed LMS
+platform, sample OneRoster bundles, a local webhook sink) — no third-party credentials required.
+
+- 🎓 **LTI 1.3 Tool Provider** — launch students straight onto a desktop from **Canvas, Schoology, Moodle, Blackboard or D2L** with no join code. Full OIDC handshake: third-party-initiated login, `id_token` verified against the platform JWKS (`jose`), nonce/message-type/version/deployment enforcement, and JIT provisioning of the teacher + class (Instructor) or student (Learner). Tool URLs + platform registration live in the admin console; the tool's keys are served at `/api/lti/jwks.json`.
+- 🗂️ **OneRoster 1.1 roster sync** — import the standard CSV bundle exported by **Clever, ClassLink, PowerSchool, Skyward** and most SIS. Classes/students sync by `sourcedId` (idempotent), with a dry-run diff preview and automatic **de-provisioning** of students dropped from the bundle.
+- 🔌 **Public REST API v1 + API keys** — scoped, SHA-256-hashed keys (`Authorization: Bearer rcd_sk_…`), per-key rate limiting, and an OpenAPI 3.1 doc at `/api/v1/openapi.json`. Drive classes, rosters and desktops from your SIS, MDM or scripts.
+- 🪝 **Outbound webhooks** — push class events to Slack, Teams, Zapier, a SIEM or any URL. Each POST is HMAC-signed (`X-RCD-Signature`) with a stable `X-RCD-Event-Id`, retried with exponential backoff, then dead-lettered; manual resend from the console.
+- 📦 **Assignment hand-back** — return graded work + feedback straight into a student's desktop (`My-Files/Returned/…`), recording a score that LTI **AGS grade passback** can read.
+
+> SSO and live vendor REST APIs (Google Classroom, Canvas REST) build on this same OIDC/OAuth plumbing and are gated on your district's credentials to exercise against the real services.
+
+---
+
 ## Plans &amp; pricing
 
 Pricing is shown to teachers only — students join with a code and never encounter a paywall.

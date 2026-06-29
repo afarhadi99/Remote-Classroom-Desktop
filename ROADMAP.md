@@ -43,3 +43,15 @@ implemented and verified end-to-end the same way:
 | Bell-schedule auto-shutdown at class-period end | Time & cost control | ☑ |
 | One-click class clone / duplicate | Admin | ☑ |
 | Low-bandwidth connection-saver desktop mode | Low-bandwidth access | ☑ |
+
+## Major integrations
+
+Standards-based, shipped and verified end-to-end locally (simulating the LMS/SIS/caller):
+
+| Feature | Standard / target | Status |
+|---------|-------------------|--------|
+| Public REST API v1 + scoped API keys + OpenAPI 3.1 | Platform / developers | ☑ |
+| Outbound webhooks (HMAC-signed, retries + dead-letter) | Slack/Teams/Zapier/SIEM | ☑ |
+| OneRoster 1.1 CSV roster sync + de-provisioning | Clever/ClassLink/PowerSchool/SIS | ☑ |
+| LTI 1.3 Tool Provider (OIDC launch + JIT) | Canvas/Schoology/Moodle/Blackboard/D2L | ☑ |
+| Assignment hand-back (graded work + score record) | Teaching loop / LTI AGS-ready | ☑ |
