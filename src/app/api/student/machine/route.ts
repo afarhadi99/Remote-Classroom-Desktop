@@ -109,5 +109,6 @@ export async function GET() {
     group: group ? { id: group.id, name: group.name } : null,
     activePoll,
     nudge: studentRow.nudge ? { text: studentRow.nudge, at: studentRow.nudgeAt!.toISOString() } : null,
+    timeRequested: !!studentRow.timeRequestAt,
   })
 }

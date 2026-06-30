@@ -338,6 +338,8 @@ model Student {
   // Private 1:1 message from the teacher to just this student (null = none).
   nudge      String?
   nudgeAt    DateTime?
+  // Student "ask for more time" request on their running session (cleared when granted/booted).
+  timeRequestAt DateTime?
 
   // OneRoster/SIS identity + soft-delete marker for roster sync de-provisioning.
   sourcedId  String?

@@ -104,6 +104,13 @@ export function ActivityLog({
       <Card className="gap-0 p-0">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-sm font-medium text-muted-foreground">
           <ScrollText className="size-4 text-primary" /> Activity log
+          <a
+            href={`/api/classes/${classId}/events/export`}
+            download
+            className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground transition hover:border-foreground/20"
+          >
+            <Download className="size-3.5" /> Export CSV
+          </a>
         </div>
         {!events ? (
           <div className="flex justify-center py-12 text-muted-foreground">

@@ -88,6 +88,7 @@ interface SStudent {
   flag: { kind: string | null; note: string | null; at: string } | null
   groupId: string | null
   hasPin: boolean
+  timeRequestedAt: string | null
 }
 interface SGroup {
   id: string
@@ -1013,6 +1014,11 @@ function StudentCard({
             {student.groupId && (
               <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
                 <UsersRound className="size-3" /> Group
+              </span>
+            )}
+            {student.timeRequestedAt && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+                <Clock3 className="size-3" /> Wants time
               </span>
             )}
             {requirePin && (

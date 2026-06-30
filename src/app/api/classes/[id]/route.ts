@@ -92,6 +92,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           : null,
         groupId: s.groupId,
         hasPin: !!s.joinPin,
+        timeRequestedAt: s.timeRequestAt ? s.timeRequestAt.toISOString() : null,
       }
     }),
     groups: groups.map((g) => ({

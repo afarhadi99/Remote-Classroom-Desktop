@@ -52,6 +52,7 @@ interface Payload {
     myChoice: number | null
   } | null
   nudge: { text: string; at: string } | null
+  timeRequested: boolean
 }
 
 export function StudentDashboard() {
@@ -144,7 +145,20 @@ export function StudentDashboard() {
     )
   }
 
-  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group, activePoll, nudge } = data
+  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group, activePoll, nudge, timeRequested } = data
+
+  async function askForTime() {
+    try {
+      await api("/api/student/request-time", { method: timeRequested ? "DELETE" : "POST" })
+      toast[timeRequested ? "info" : "success"](
+        timeRequested ? "Request withdrawn" : "Asked for more time",
+        timeRequested ? undefined : "Your teacher has been notified.",
+      )
+      load()
+    } catch (err) {
+      toast.error("Could not send request", (err as Error).message)
+    }
+  }
 
   async function respondPoll(body: { choice?: number; text?: string }) {
     if (!activePoll) return
@@ -271,6 +285,14 @@ export function StudentDashboard() {
               the desktop. It stays safe even after this machine shuts down — it&apos;ll be there next time you log
               in.
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={askForTime}
+              className={timeRequested ? "border-amber-300 text-amber-700" : undefined}
+            >
+              <Hourglass className="size-3.5" /> {timeRequested ? "Time requested" : "Ask for more time"}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setFilesOpen(true)}>
               <FolderOpen className="size-3.5" /> Browse my files
             </Button>

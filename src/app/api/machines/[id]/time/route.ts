@@ -37,6 +37,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const expiresAt = new Date(Math.max(floor, proposed))
 
   const updated = await prisma.machine.update({ where: { id }, data: { expiresAt } })
+  // Granting time resolves any pending "ask for more time" request from this student.
+  if (machine.studentId && parsed.data.deltaMinutes > 0) {
+    await prisma.student.updateMany({ where: { id: machine.studentId, timeRequestAt: { not: null } }, data: { timeRequestAt: null } })
+  }
 
   const who = machine.student?.name ?? (machine.group ? `group ${machine.group.name}` : 'a desktop')
   const d = parsed.data.deltaMinutes
