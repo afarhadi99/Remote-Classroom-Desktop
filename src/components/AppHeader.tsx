@@ -2,20 +2,32 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { LogOut, CreditCard, LayoutDashboard } from "lucide-react"
+import { LogOut, CreditCard, LayoutDashboard, ShieldCheck } from "lucide-react"
 import { Brand } from "@/components/brand"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { useToast } from "@/components/Toast"
 import { api } from "@/lib/client"
 import { initialsOf } from "@/lib/utils"
 
 export function AppHeader({ name, role }: { name: string; role: "teacher" | "student" }) {
   const router = useRouter()
+  const toast = useToast()
 
   async function logout() {
     await api("/api/auth/logout", { method: "POST" }).catch(() => {})
     router.push("/")
     router.refresh()
+  }
+
+  async function revokeAll() {
+    if (!confirm("Sign out of all other devices? You'll stay signed in here.")) return
+    try {
+      await api("/api/teacher/account/revoke-sessions", { method: "POST" })
+      toast.success("Signed out everywhere else", "Other devices will need to log in again.")
+    } catch (e) {
+      toast.error("Could not sign out other devices", (e as Error).message)
+    }
   }
 
   return (
@@ -45,6 +57,9 @@ export function AppHeader({ name, role }: { name: string; role: "teacher" | "stu
                 <Link href="/teacher/billing">
                   <CreditCard className="size-3.5" /> <span className="hidden sm:inline">Plan</span>
                 </Link>
+              </Button>
+              <Button onClick={revokeAll} variant="ghost" size="sm" title="Sign out of all other devices">
+                <ShieldCheck className="size-3.5" /> <span className="hidden sm:inline">Sign out all</span>
               </Button>
             </>
           )}

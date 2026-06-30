@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { SignJWT, jwtVerify } from 'jose'
 import bcrypt from 'bcryptjs'
+import { prisma } from './prisma'
 
 const COOKIE_NAME = 'rcd_session'
 const MAX_AGE = 60 * 60 * 24 * 7 // 7 days
@@ -59,10 +60,23 @@ export async function getSession(): Promise<SessionUser | null> {
   if (!token) return null
   try {
     const { payload } = await jwtVerify(token, secretKey())
-    if (payload.role === 'teacher' || payload.role === 'student' || payload.role === 'admin') {
-      return payload as unknown as SessionUser
+    if (payload.role !== 'teacher' && payload.role !== 'student' && payload.role !== 'admin') return null
+
+    // "Sign out everywhere": reject privileged tokens issued before the account's cutoff.
+    // Fail-open on a DB error so a transient hiccup never mass-logs-out (the JWT signature is
+    // the primary auth; this is a secondary revocation check). Students aren't revocable.
+    if ((payload.role === 'teacher' || payload.role === 'admin') && typeof payload.iat === 'number') {
+      try {
+        const validFrom =
+          payload.role === 'teacher'
+            ? (await prisma.teacher.findUnique({ where: { id: String(payload.id) }, select: { sessionsValidFrom: true } }))?.sessionsValidFrom
+            : (await prisma.admin.findUnique({ where: { id: String(payload.id) }, select: { sessionsValidFrom: true } }))?.sessionsValidFrom
+        if (validFrom && payload.iat < Math.floor(validFrom.getTime() / 1000)) return null
+      } catch {
+        /* fail open */
+      }
     }
-    return null
+    return payload as unknown as SessionUser
   } catch {
     return null
   }
