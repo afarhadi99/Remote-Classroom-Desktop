@@ -1,10 +1,11 @@
 import 'server-only'
 import { prisma } from './prisma'
-import { sweepExpiredMachines, runScheduledBoots, runScheduledShutdowns } from './machines'
+import { sweepExpiredMachines, runScheduledBoots, runScheduledShutdowns, reconcileDesktops } from './machines'
 import { deliverDueWebhooks } from './webhooks'
 import { drainGradeJobs } from './lti-services'
 
 const globalForSweeper = globalThis as unknown as { rcdSweeper?: NodeJS.Timeout }
+let lastReconcileAt = 0 // ms; 0 => reconcile on the first tick after boot
 
 export interface SweeperResult {
   expired: number
@@ -51,6 +52,17 @@ export async function runSweeperTick(): Promise<SweeperResult> {
     out.gradeJobsProcessed = await drainGradeJobs()
   } catch (err) {
     errors.push(`grades: ${(err as Error).message}`)
+  }
+  // Reconcile DB<->Daytona drift, but only every ~10 min (the Daytona list call is heavy).
+  try {
+    const sinceReconcile = startedAt.getTime() - lastReconcileAt
+    if (sinceReconcile > 10 * 60_000) {
+      lastReconcileAt = startedAt.getTime()
+      const r = await reconcileDesktops()
+      if (r.orphansDeleted || r.staleStopped) console.log(`[sweeper] reconcile: orphans=${r.orphansDeleted} stale=${r.staleStopped}`)
+    }
+  } catch (err) {
+    errors.push(`reconcile: ${(err as Error).message}`)
   }
 
   const finishedAt = new Date()

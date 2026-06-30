@@ -1,7 +1,7 @@
 import 'server-only'
 import type { Machine, Student, ClassGroup } from '@prisma/client'
 import { prisma } from './prisma'
-import { createDesktop, destroyDesktop, getOrCreateVolume, daytonaErrorMessage } from './daytona'
+import { createDesktop, destroyDesktop, getOrCreateVolume, daytonaErrorMessage, getDaytona } from './daytona'
 import type { OsType } from './os'
 import { getPlan, isUnlimited, currentUsageMonth, type Plan } from './plans'
 import { logEvent } from './events'
@@ -518,6 +518,66 @@ export async function runScheduledShutdowns(now: Date = new Date()): Promise<num
     fired++
   }
   return fired
+}
+
+/**
+ * Self-heal: reconcile DB state against actual Daytona sandboxes. (1) Deletes orphaned
+ * sandboxes — ones whose `machineId` label has no active machine row (e.g. a class was deleted
+ * but the sandbox teardown failed) — so leaked compute can't bill forever. (2) Marks RUNNING
+ * rows whose sandbox has vanished as STOPPED. A creation/boot grace window avoids racing
+ * in-flight provisions. Best-effort: if listing fails it touches nothing.
+ */
+export async function reconcileDesktops(now: Date = new Date()): Promise<{ orphansDeleted: number; staleStopped: number; alive: number }> {
+  const daytona = getDaytona()
+  const GRACE_MS = 6 * 60_000
+  const aliveIds = new Set<string>()
+  let orphansDeleted = 0
+
+  try {
+    for await (const s of daytona.list({ labels: { app: 'remote-classroom' } })) {
+      const st = String(s.state).toLowerCase()
+      if (['stopped', 'destroyed', 'archived', 'error', 'creating', 'restoring', 'pending_create'].includes(st)) continue
+      aliveIds.add(s.id)
+
+      const youngerThanGrace = s.createdAt && now.getTime() - new Date(s.createdAt).getTime() < GRACE_MS
+      if (youngerThanGrace) continue
+      const machineId = s.labels?.machineId
+      if (!machineId) continue // not one of our machine-bound sandboxes — leave it alone
+
+      const active = await prisma.machine.findFirst({
+        where: { id: machineId, status: { in: ACTIVE_STATUSES as unknown as string[] } },
+        select: { id: true },
+      })
+      if (!active) {
+        await destroyDesktop(s.id)
+        aliveIds.delete(s.id)
+        orphansDeleted++
+      }
+    }
+  } catch (err) {
+    console.error('[reconcile] list failed', err)
+    return { orphansDeleted, staleStopped: 0, alive: aliveIds.size }
+  }
+
+  // RUNNING rows whose sandbox is no longer alive (and past the boot grace) -> mark stopped.
+  let staleStopped = 0
+  const running = await prisma.machine.findMany({ where: { status: 'RUNNING', sandboxId: { not: null } }, include: { student: true } })
+  for (const m of running) {
+    if (m.startedAt && now.getTime() - m.startedAt.getTime() < GRACE_MS) continue
+    if (aliveIds.has(m.sandboxId!)) continue
+    await accrueUsage(m, now)
+    await prisma.machine.update({ where: { id: m.id }, data: { status: 'STOPPED', stoppedAt: now, previewUrl: null } }).catch(() => {})
+    await clearSpotlightIfMachine(m.classroomId, m.id)
+    await logEvent({
+      classroomId: m.classroomId,
+      studentId: m.studentId,
+      type: 'stopped',
+      actorRole: 'system',
+      message: `Reconcile: ${m.student?.name ?? 'a'}'s desktop was already gone — marked stopped`,
+    })
+    staleStopped++
+  }
+  return { orphansDeleted, staleStopped, alive: aliveIds.size }
 }
 
 /** Stops every active machine in a classroom. */
