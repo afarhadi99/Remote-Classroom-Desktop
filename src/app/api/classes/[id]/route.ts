@@ -69,6 +69,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       bootWindowEnd: classroom.bootWindowEnd,
       requireJoinPin: classroom.requireJoinPin,
       announcement: classroom.announcement,
+      agenda: Array.isArray(classroom.agenda) ? (classroom.agenda as string[]) : [],
+      agendaStep: classroom.agendaStep,
       locked: !!classroom.lockedAt,
       lms: { roster: !!classroom.ltiNrpsUrl, grades: !!classroom.ltiAgsLineitemsUrl },
       createdAt: classroom.createdAt.toISOString(),

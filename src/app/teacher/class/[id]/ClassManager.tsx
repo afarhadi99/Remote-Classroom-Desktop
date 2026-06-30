@@ -55,6 +55,7 @@ import { RosterModal } from "@/components/RosterModal"
 import { AnnounceModal } from "@/components/AnnounceModal"
 import { PollModal } from "@/components/PollModal"
 import { PreflightModal } from "@/components/PreflightModal"
+import { AgendaModal } from "@/components/AgendaModal"
 import { AssignmentsModal } from "@/components/AssignmentsModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
@@ -118,6 +119,8 @@ interface SClassroom {
   bootWindowEnd: number | null
   requireJoinPin: boolean
   announcement: string | null
+  agenda: string[]
+  agendaStep: number | null
   locked: boolean
   lms: { roster: boolean; grades: boolean }
 }
@@ -177,6 +180,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [rosterOpen, setRosterOpen] = useState(false)
   const [announceOpen, setAnnounceOpen] = useState(false)
   const [pollOpen, setPollOpen] = useState(false)
+  const [agendaOpen, setAgendaOpen] = useState(false)
   const [preflightOpen, setPreflightOpen] = useState(false)
   const [pinBusy, setPinBusy] = useState(false)
   const [nrpsBusy, setNrpsBusy] = useState(false)
@@ -584,6 +588,14 @@ export function ClassManager({ classId }: { classId: string }) {
               </Button>
               <Button variant="outline" size="sm" onClick={() => setPollOpen(true)} title="Run a live poll / exit ticket">
                 <ListChecks className="size-3.5" /> Poll
+              </Button>
+              <Button
+                variant={classroom.agenda.length > 0 ? "ink" : "outline"}
+                size="sm"
+                onClick={() => setAgendaOpen(true)}
+                title="Set today's lesson agenda"
+              >
+                <ClipboardList className="size-3.5" /> Agenda
               </Button>
               <Button
                 variant={classroom.locked ? "ink" : "outline"}
@@ -1055,6 +1067,14 @@ export function ClassManager({ classId }: { classId: string }) {
       />
       <PollModal classId={classId} open={pollOpen} onOpenChange={setPollOpen} />
       <PreflightModal classId={classId} open={preflightOpen} onOpenChange={setPreflightOpen} />
+      <AgendaModal
+        classId={classId}
+        initialItems={classroom.agenda}
+        initialStep={classroom.agendaStep}
+        open={agendaOpen}
+        onOpenChange={setAgendaOpen}
+        onChanged={load}
+      />
     </main>
   )
 }

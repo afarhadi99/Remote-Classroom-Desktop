@@ -54,6 +54,7 @@ interface Payload {
   nudge: { text: string; at: string } | null
   timeRequested: boolean
   personalLock: { message: string | null } | null
+  agenda: { items: string[]; step: number | null } | null
 }
 
 export function StudentDashboard() {
@@ -146,7 +147,7 @@ export function StudentDashboard() {
     )
   }
 
-  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group, activePoll, nudge, timeRequested, personalLock } = data
+  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group, activePoll, nudge, timeRequested, personalLock, agenda } = data
   const locked = classroom.locked || !!personalLock
   const lockMessage = personalLock ? personalLock.message : classroom.lockMessage
 
@@ -244,6 +245,35 @@ export function StudentDashboard() {
             <X className="size-4" />
           </button>
         </div>
+      )}
+
+      {agenda && agenda.items.length > 0 && (
+        <Card className="mt-5 gap-2 p-5">
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <ListChecks className="size-4 text-primary" /> Today&apos;s agenda
+          </p>
+          <ol className="space-y-1.5">
+            {agenda.items.map((item, i) => {
+              const current = agenda.step === i
+              const done = agenda.step != null && i < agenda.step
+              return (
+                <li
+                  key={i}
+                  className={cn(
+                    "flex items-start gap-2 rounded-md px-2 py-1.5 text-sm",
+                    current ? "bg-primary/10 font-medium text-foreground" : done ? "text-muted-foreground line-through" : "text-foreground/80",
+                  )}
+                >
+                  <span className={cn("mt-0.5 grid size-5 shrink-0 place-items-center rounded-full text-[11px]", current ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>
+                    {done ? <Check className="size-3" /> : i + 1}
+                  </span>
+                  <span>{item}</span>
+                  {current && <span className="ml-auto text-[11px] uppercase tracking-wide text-primary">now</span>}
+                </li>
+              )
+            })}
+          </ol>
+        </Card>
       )}
 
       {activePoll && <PollCard poll={activePoll} onSubmit={respondPoll} />}

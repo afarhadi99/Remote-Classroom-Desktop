@@ -95,6 +95,9 @@ model Classroom {
   announcementAt     DateTime?
   // Require a per-student PIN to join (stops roster-name impersonation).
   requireJoinPin     Boolean   @default(false)
+  // Lesson agenda shown to students: ordered step texts + the current step index (null = none).
+  agenda             Json?
+  agendaStep         Int?
   createdAt          DateTime  @default(now())
   students           Student[]
   machines           Machine[]
