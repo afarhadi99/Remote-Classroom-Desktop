@@ -10,6 +10,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Platform operator (super-admin) — oversees ALL teachers, subscriptions and desktops.
+// Separate from Teacher; created out-of-band (seed script / env), never self-signup.
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String // bcrypt hash
+  createdAt DateTime @default(now())
+}
+
 model Teacher {
   id        String      @id @default(cuid())
   email     String      @unique

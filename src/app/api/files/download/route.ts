@@ -50,7 +50,7 @@ export async function GET(req: Request) {
       classroomId: machine.classroomId,
       studentId: machine.studentId,
       type: 'download',
-      actorRole: session.role,
+      actorRole: session.role === 'student' ? 'student' : 'teacher',
       message: `${who} downloaded "${name}"${session.role === 'teacher' ? ` from ${machine.student?.name ?? 'a student'}'s files` : ''}`,
     })
 

@@ -96,7 +96,7 @@ async function authorizeDesktop(req, sandboxId) {
   let session
   try {
     const { payload } = await jwtVerify(token, SECRET)
-    if (payload.role !== 'teacher' && payload.role !== 'student') return { ok: false }
+    if (payload.role !== 'teacher' && payload.role !== 'student' && payload.role !== 'admin') return { ok: false }
     session = payload
   } catch {
     return { ok: false }
@@ -114,6 +114,8 @@ async function authorizeDesktop(req, sandboxId) {
     })
     if (machine) {
       let authorized =
+        // Platform super-admin may view any desktop for oversight.
+        session.role === 'admin' ||
         (session.role === 'teacher' && machine.classroom.teacherId === session.id) ||
         (session.role === 'student' && machine.studentId === session.id) ||
         // Broadcast: any student in the class may view the currently-spotlighted desktop.

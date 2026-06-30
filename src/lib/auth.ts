@@ -24,7 +24,14 @@ export type StudentSession = {
   classroomId: string
 }
 
-export type SessionUser = TeacherSession | StudentSession
+export type AdminSession = {
+  role: 'admin'
+  id: string
+  name: string
+  email: string
+}
+
+export type SessionUser = TeacherSession | StudentSession | AdminSession
 
 export async function createSessionToken(user: SessionUser): Promise<string> {
   return await new SignJWT({ ...user })
@@ -52,7 +59,7 @@ export async function getSession(): Promise<SessionUser | null> {
   if (!token) return null
   try {
     const { payload } = await jwtVerify(token, secretKey())
-    if (payload.role === 'teacher' || payload.role === 'student') {
+    if (payload.role === 'teacher' || payload.role === 'student' || payload.role === 'admin') {
       return payload as unknown as SessionUser
     }
     return null
