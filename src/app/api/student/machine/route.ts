@@ -110,5 +110,6 @@ export async function GET() {
     activePoll,
     nudge: studentRow.nudge ? { text: studentRow.nudge, at: studentRow.nudgeAt!.toISOString() } : null,
     timeRequested: !!studentRow.timeRequestAt,
+    personalLock: studentRow.lockedAt ? { message: studentRow.lockMessage } : null,
   })
 }

@@ -53,6 +53,7 @@ interface Payload {
   } | null
   nudge: { text: string; at: string } | null
   timeRequested: boolean
+  personalLock: { message: string | null } | null
 }
 
 export function StudentDashboard() {
@@ -145,7 +146,9 @@ export function StudentDashboard() {
     )
   }
 
-  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group, activePoll, nudge, timeRequested } = data
+  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group, activePoll, nudge, timeRequested, personalLock } = data
+  const locked = classroom.locked || !!personalLock
+  const lockMessage = personalLock ? personalLock.message : classroom.lockMessage
 
   async function askForTime() {
     try {
@@ -175,8 +178,8 @@ export function StudentDashboard() {
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">
-      {classroom.locked && <LockOverlay message={classroom.lockMessage} />}
-      {!classroom.locked && spotlight && (
+      {locked && <LockOverlay message={lockMessage} />}
+      {!locked && spotlight && (
         <SpotlightOverlay tileUrl={spotlight.tileUrl} presenterName={spotlight.presenterName} />
       )}
       <div className="flex flex-wrap items-end justify-between gap-3">

@@ -89,6 +89,7 @@ interface SStudent {
   groupId: string | null
   hasPin: boolean
   timeRequestedAt: string | null
+  lockedIndividually: boolean
 }
 interface SGroup {
   id: string
@@ -291,6 +292,16 @@ export function ClassManager({ classId }: { classId: string }) {
       toast.error("Could not change PIN setting", (e as Error).message)
     } finally {
       setPinBusy(false)
+    }
+  }
+
+  async function lockStudent(studentId: string, name: string, locked: boolean) {
+    try {
+      await api(`/api/students/${studentId}/lock`, { method: "POST", body: { locked } })
+      toast[locked ? "info" : "success"](locked ? `Locked ${name}'s screen` : `Unlocked ${name}'s screen`)
+      load()
+    } catch (e) {
+      toast.error("Could not change lock", (e as Error).message)
     }
   }
 
@@ -933,6 +944,7 @@ export function ClassManager({ classId }: { classId: string }) {
                   requirePin={classroom.requireJoinPin}
                   onPin={() => setStudentPin(s.id, s.name)}
                   onNudge={() => nudgeStudent(s.id, s.name)}
+                  onLock={() => lockStudent(s.id, s.name, !s.lockedIndividually)}
                 />
               ))}
             </div>
@@ -993,6 +1005,7 @@ function StudentCard({
   requirePin,
   onPin,
   onNudge,
+  onLock,
 }: {
   student: SStudent
   monthlyUnlimited: boolean
@@ -1005,6 +1018,7 @@ function StudentCard({
   requirePin: boolean
   onPin: () => void
   onNudge: () => void
+  onLock: () => void
 }) {
   const m = student.machine
   const isActive = m && ACTIVE.includes(m.status)
@@ -1040,6 +1054,11 @@ function StudentCard({
                 <Clock3 className="size-3" /> Wants time
               </span>
             )}
+            {student.lockedIndividually && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-ink/10 px-1.5 py-0.5 text-[10px] font-semibold text-ink">
+                <Lock className="size-3" /> Locked
+              </span>
+            )}
             {requirePin && (
               <button
                 onClick={onPin}
@@ -1056,6 +1075,16 @@ function StudentCard({
             )}
           </div>
         </div>
+        <button
+          onClick={onLock}
+          title={student.lockedIndividually ? "Unlock this student's screen" : "Lock this student's screen"}
+          className={cn(
+            "cursor-pointer rounded-md p-1 transition hover:bg-accent",
+            student.lockedIndividually ? "text-ink" : "text-muted-foreground hover:text-primary",
+          )}
+        >
+          {student.lockedIndividually ? <Lock className="size-4" /> : <Unlock className="size-4" />}
+        </button>
         <button
           onClick={onNudge}
           title="Send a private message"
