@@ -165,6 +165,18 @@ export async function destroyDesktop(sandboxId: string): Promise<void> {
   }
 }
 
+/** Deletes a persistent volume by name (right-to-erasure). Safe if it's already gone. */
+export async function destroyVolume(name: string): Promise<void> {
+  if (!name) return
+  const daytona = getDaytona()
+  try {
+    const vol = await daytona.volume.get(name, false)
+    if (vol) await daytona.volume.delete(vol)
+  } catch {
+    // not found / already deleted — fine
+  }
+}
+
 /** Maps Daytona/SDK errors to a friendly message for teachers/students. */
 export function daytonaErrorMessage(err: unknown): string {
   const e = err as { statusCode?: number; message?: string }

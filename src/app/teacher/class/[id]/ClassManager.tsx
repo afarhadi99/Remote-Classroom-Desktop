@@ -38,6 +38,7 @@ import {
   ShieldCheck,
   MessageSquare,
   Timer,
+  Trash2,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -315,6 +316,17 @@ export function ClassManager({ classId }: { classId: string }) {
       load()
     } catch (e) {
       toast.error("Could not change lock", (e as Error).message)
+    }
+  }
+
+  async function eraseStudent(studentId: string, name: string) {
+    if (!confirm(`Permanently erase ${name}? This stops their desktop, deletes their files, and removes them. This cannot be undone.`)) return
+    try {
+      await api(`/api/students/${studentId}`, { method: "DELETE" })
+      toast.success(`Erased ${name}`, "Their files and record were deleted.")
+      load()
+    } catch (e) {
+      toast.error("Could not erase student", (e as Error).message)
     }
   }
 
@@ -993,6 +1005,7 @@ export function ClassManager({ classId }: { classId: string }) {
                   onNudge={() => nudgeStudent(s.id, s.name)}
                   onLock={() => lockStudent(s.id, s.name, !s.lockedIndividually)}
                   onAccommodation={() => setAccommodation(s.id, s.name, s.extraTimePct)}
+                  onErase={() => eraseStudent(s.id, s.name)}
                 />
               ))}
             </div>
@@ -1055,6 +1068,7 @@ function StudentCard({
   onNudge,
   onLock,
   onAccommodation,
+  onErase,
 }: {
   student: SStudent
   monthlyUnlimited: boolean
@@ -1069,6 +1083,7 @@ function StudentCard({
   onNudge: () => void
   onLock: () => void
   onAccommodation: () => void
+  onErase: () => void
 }) {
   const m = student.machine
   const isActive = m && ACTIVE.includes(m.status)
@@ -1158,6 +1173,13 @@ function StudentCard({
           <MessageSquare className="size-4" />
         </button>
         {m && <OsIcon os={m.os} className="size-4 text-muted-foreground" />}
+        <button
+          onClick={onErase}
+          title="Erase this student and their files (right to erasure)"
+          className="cursor-pointer rounded-md p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="size-4" />
+        </button>
       </div>
 
       {usage && !monthlyUnlimited && (
