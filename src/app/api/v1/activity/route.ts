@@ -4,7 +4,8 @@ import { getApiCaller } from '@/lib/apikeys'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/v1/activity?classId=&limit= — recent activity events across the teacher's classes.
+// GET /api/v1/activity?classId=&limit=&cursor= — recent activity events, newest first.
+// Cursor pagination: pass the returned `nextCursor` to fetch the next page (null = end).
 export async function GET(req: Request) {
   const caller = await getApiCaller(req, 'activity:read')
   if (!caller.ok) return apiError(caller.error, caller.status)
@@ -12,6 +13,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const classId = url.searchParams.get('classId')
   const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit')) || 50))
+  const cursor = url.searchParams.get('cursor')
 
   // Constrain to classes the caller owns.
   const owned = await prisma.classroom.findMany({ where: { teacherId: caller.teacherId }, select: { id: true } })
@@ -22,12 +24,15 @@ export async function GET(req: Request) {
 
   const events = await prisma.classEvent.findMany({
     where,
-    orderBy: { createdAt: 'desc' },
-    take: limit,
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit + 1, // fetch one extra to detect a next page
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     include: { student: { select: { name: true } } },
   })
+  const hasMore = events.length > limit
+  const page = hasMore ? events.slice(0, limit) : events
   return json({
-    events: events.map((e) => ({
+    events: page.map((e) => ({
       id: e.id,
       classroomId: e.classroomId,
       type: e.type,
@@ -36,5 +41,6 @@ export async function GET(req: Request) {
       studentName: e.student?.name ?? null,
       createdAt: e.createdAt.toISOString(),
     })),
+    nextCursor: hasMore ? page[page.length - 1].id : null,
   })
 }

@@ -451,3 +451,18 @@ model LtiDeepLinkSession {
   expiresAt    DateTime
   createdAt    DateTime  @default(now())
 }
+
+// Idempotency: caches the response of a mutating API call keyed by (apiKey, Idempotency-Key)
+// so client retries don't double-create classes / enrollments / boots.
+model IdempotencyKey {
+  id           String   @id @default(cuid())
+  keyId        String
+  idemKey      String
+  method       String
+  path         String
+  statusCode   Int
+  responseBody String
+  createdAt    DateTime @default(now())
+
+  @@unique([keyId, idemKey])
+}
