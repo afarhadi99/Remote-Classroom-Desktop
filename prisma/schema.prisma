@@ -75,6 +75,8 @@ model Classroom {
   // Exam mode: student banner + no self-shutdown; pair with a locked-down netMode.
   examMode           Boolean   @default(false)
   examMessage        String?
+  // Safeguarding: comma-separated watch-terms; student notes/answers matching them raise an alert.
+  safeguardKeywords  String?
   // "Eyes on me" focus lock — when set, students see a full-screen lock over their desktop.
   lockedAt           DateTime?
   lockMessage        String?

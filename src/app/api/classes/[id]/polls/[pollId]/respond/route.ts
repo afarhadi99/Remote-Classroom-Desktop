@@ -34,5 +34,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     update: { choice: parsed.data.choice ?? null, text: parsed.data.text ?? null },
     create: { pollId, studentId: student.id, choice: parsed.data.choice ?? null, text: parsed.data.text ?? null },
   })
+  if (parsed.data.text) {
+    const { scanText } = await import('@/lib/safeguard')
+    await scanText(id, { studentId: student.id, studentName: student.name, source: 'poll answer', text: parsed.data.text })
+  }
   return json({ ok: true })
 }

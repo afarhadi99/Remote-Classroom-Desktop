@@ -22,6 +22,7 @@ export type EventType =
   | 'announce'
   | 'clone'
   | 'poll'
+  | 'safeguard'
 
 export interface LogEventInput {
   classroomId: string

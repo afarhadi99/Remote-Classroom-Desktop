@@ -39,6 +39,7 @@ const ICONS: Record<string, { icon: typeof Rocket; cls: string }> = {
   download: { icon: Download, cls: "text-sky-600" },
   provision_all: { icon: Rocket, cls: "text-primary" },
   shutdown_all: { icon: Power, cls: "text-muted-foreground" },
+  safeguard: { icon: AlertTriangle, cls: "text-destructive" },
 }
 
 function ago(iso: string): string {

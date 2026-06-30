@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { apiError, getStudent, json } from '@/lib/api'
 import { logEvent } from '@/lib/events'
+import { scanText } from '@/lib/safeguard'
 
 const schema = z.object({
   kind: z.enum(['help', 'report']),
@@ -37,6 +38,9 @@ export async function POST(req: Request) {
         ? `${student.name} raised their hand${note ? `: “${note}”` : ''}`
         : `${student.name} reported something${note ? `: “${note}”` : ''}`,
   })
+  if (note) {
+    await scanText(studentRow.classroomId, { studentId: student.id, studentName: student.name, source: kind === 'report' ? 'report' : 'note', text: note })
+  }
   return json({ ok: true })
 }
 

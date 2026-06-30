@@ -109,6 +109,7 @@ interface SClassroom {
   allowedDomains: string | null
   examMode: boolean
   examMessage: string | null
+  safeguardKeywords: string | null
   requireJoinPin: boolean
   announcement: string | null
   locked: boolean
@@ -143,6 +144,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [netMode, setNetMode] = useState<"open" | "allowlist" | "blocked">("open")
   const [allowedDomains, setAllowedDomains] = useState("")
   const [snapshot, setSnapshot] = useState("")
+  const [safeguardKeywords, setSafeguardKeywords] = useState("")
   const [resolvingFlags, setResolvingFlags] = useState(false)
   const [examMode, setExamMode] = useState(false)
   const [examBusy, setExamBusy] = useState(false)
@@ -182,6 +184,7 @@ export function ClassManager({ classId }: { classId: string }) {
         setNetMode(d.classroom.netMode)
         setAllowedDomains(d.classroom.allowedDomains ?? "")
         setSnapshot(d.classroom.snapshot ?? "")
+        setSafeguardKeywords(d.classroom.safeguardKeywords ?? "")
         initialized.current = true
       }
     } catch (err) {
@@ -207,6 +210,7 @@ export function ClassManager({ classId }: { classId: string }) {
           netMode,
           allowedDomains: allowedDomains.trim() || null,
           snapshot: snapshot.trim() || null,
+          safeguardKeywords: safeguardKeywords.trim() || null,
         },
       })
       setSettingsTouched(false)
@@ -835,6 +839,21 @@ export function ClassManager({ classId }: { classId: string }) {
                 </span>
                 <Switch checked={classroom.requireJoinPin} onCheckedChange={toggleRequirePin} disabled={pinBusy} />
               </label>
+
+              <div className="mt-4 space-y-2">
+                <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <ShieldCheck className="size-3.5" /> Safeguarding watch-list
+                </p>
+                <Input
+                  value={safeguardKeywords}
+                  onChange={(e) => { setSafeguardKeywords(e.target.value); setSettingsTouched(true) }}
+                  placeholder="comma-separated terms, e.g. hurt, bully, run away"
+                />
+                <p className="text-xs text-muted-foreground">
+                  If a student&apos;s help/report note or a poll answer matches one of these terms, a
+                  privacy-safe alert (the term only, not the text) is raised in the Activity log.
+                </p>
+              </div>
 
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button variant="ink" onClick={bootAll} disabled={bootingAll || students.length === 0}>

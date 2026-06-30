@@ -64,6 +64,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       allowedDomains: classroom.allowedDomains,
       examMode: classroom.examMode,
       examMessage: classroom.examMessage,
+      safeguardKeywords: classroom.safeguardKeywords,
       requireJoinPin: classroom.requireJoinPin,
       announcement: classroom.announcement,
       locked: !!classroom.lockedAt,
@@ -121,6 +122,7 @@ const patchSchema = z.object({
   examMode: z.boolean().optional(),
   examMessage: z.string().max(200).nullable().optional(),
   requireJoinPin: z.boolean().optional(),
+  safeguardKeywords: z.string().max(2000).nullable().optional(),
 })
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -138,6 +140,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // clamp session length to the teacher's plan cap
   const data = { ...parsed.data }
   if (typeof data.snapshot === 'string' && data.snapshot.trim() === '') data.snapshot = null
+  if (typeof data.safeguardKeywords === 'string' && data.safeguardKeywords.trim() === '') data.safeguardKeywords = null
   if (typeof data.defaultDurationMin === 'number') {
     const teacherRecord = await prisma.teacher.findUnique({ where: { id: teacher.id } })
     const plan = getPlan(teacherRecord?.plan)
