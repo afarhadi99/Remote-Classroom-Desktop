@@ -50,7 +50,10 @@ export async function POST(req: Request) {
 
   // Replay + message validation.
   if (payload.nonce !== stateRow.nonce) return fail('Nonce mismatch.')
-  if (payload[LTI.messageType] !== 'LtiResourceLinkRequest') return fail('Unsupported LTI message type.')
+  const messageType = payload[LTI.messageType]
+  if (messageType !== 'LtiResourceLinkRequest' && messageType !== 'LtiDeepLinkingRequest') {
+    return fail('Unsupported LTI message type.')
+  }
   if (payload[LTI.version] !== '1.3.0') return fail('Unsupported LTI version.')
   const deploymentId = String(payload[LTI.deploymentId] || '')
   if (!deploymentAllowed(platform.deploymentIds, deploymentId)) return fail('Deployment not allowed.')
@@ -68,6 +71,39 @@ export async function POST(req: Request) {
       (role === 'teacher' ? 'Instructor' : 'Student'),
   ).slice(0, 80)
   const sub = String(payload.sub || '')
+
+  // Deep Linking: an instructor authoring flow. JIT the teacher, stash the LMS return URL +
+  // opaque data, and send them to a picker to choose/create the class to embed.
+  if (messageType === 'LtiDeepLinkingRequest') {
+    if (role !== 'teacher') return fail('Deep linking is available to instructors only.', 403)
+    const dls = (payload[LTI.deepLinkingSettings] as { deep_link_return_url?: string; data?: string } | undefined) || {}
+    if (!dls.deep_link_return_url) return fail('Missing deep linking return URL.')
+
+    let teacher = await prisma.teacher.findFirst({ where: { ltiPlatformId: platform.id, ltiSub: sub } })
+    if (!teacher) {
+      teacher = await prisma.teacher.create({
+        data: {
+          name: displayName,
+          email: `lti_${platform.id}_${sub}@lti.local`.slice(0, 180),
+          password: await hashPassword(newOpaque()),
+          ltiPlatformId: platform.id,
+          ltiSub: sub,
+        },
+      })
+    }
+    const session = await prisma.ltiDeepLinkSession.create({
+      data: {
+        platformId: platform.id,
+        deploymentId,
+        returnUrl: dls.deep_link_return_url,
+        data: dls.data ?? null,
+        teacherId: teacher.id,
+        expiresAt: new Date(Date.now() + 30 * 60_000),
+      },
+    })
+    await setSessionCookie({ role: 'teacher', id: teacher.id, name: teacher.name, email: teacher.email })
+    return NextResponse.redirect(`${origin}/lti/deep-link/${session.id}`, 302)
+  }
 
   if (role === 'teacher') {
     let teacher = await prisma.teacher.findFirst({ where: { ltiPlatformId: platform.id, ltiSub: sub } })

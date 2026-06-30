@@ -11,6 +11,9 @@ export const LTI = {
   roles: 'https://purl.imsglobal.org/spec/lti/claim/roles',
   context: 'https://purl.imsglobal.org/spec/lti/claim/context',
   resourceLink: 'https://purl.imsglobal.org/spec/lti/claim/resource_link',
+  deepLinkingSettings: 'https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings',
+  deepLinkingContentItems: 'https://purl.imsglobal.org/spec/lti-dl/claim/content_items',
+  deepLinkingData: 'https://purl.imsglobal.org/spec/lti-dl/claim/data',
 } as const
 
 export const NONCE_TTL_MS = 5 * 60_000

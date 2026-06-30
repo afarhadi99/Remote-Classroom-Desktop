@@ -424,3 +424,17 @@ model PollResponse {
 
   @@unique([pollId, studentId])
 }
+
+// Short-lived LTI Deep Linking session: holds the LMS return URL + opaque data between the
+// DeepLinkingRequest launch and the teacher's content-item selection.
+model LtiDeepLinkSession {
+  id           String    @id @default(cuid())
+  platformId   String
+  deploymentId String
+  returnUrl    String
+  data         String?
+  teacherId    String
+  usedAt       DateTime?
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+}
