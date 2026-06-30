@@ -974,6 +974,11 @@ export function ClassManager({ classId }: { classId: string }) {
               <Button variant="outline" size="sm" onClick={() => setAttendanceOpen(true)}>
                 <CalendarDays className="size-3.5" /> Attendance
               </Button>
+              <Button asChild variant="outline" size="sm">
+                <a href={`/api/classes/${classId}/gradebook/export`} download>
+                  <ClipboardList className="size-3.5" /> Gradebook CSV
+                </a>
+              </Button>
             </div>
           </div>
           {students.length === 0 ? (
