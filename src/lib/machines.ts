@@ -178,8 +178,10 @@ export async function bootMachineForStudent(params: {
     }
   }
 
-  // Clamp the session to the plan's session cap and the student's remaining minutes.
-  const cap = Math.min(params.durationMin, plan.maxSessionMinutes)
+  // Apply the student's extra-time accommodation (IEP/504), then clamp to the plan's session
+  // cap and their remaining monthly minutes.
+  const accommodated = Math.round(params.durationMin * (1 + Math.max(0, student.extraTimePct) / 100))
+  const cap = Math.min(accommodated, plan.maxSessionMinutes)
   const durationMin = Math.max(5, usage.unlimited ? cap : Math.min(cap, usage.remaining))
 
   const machine = await prisma.machine.create({

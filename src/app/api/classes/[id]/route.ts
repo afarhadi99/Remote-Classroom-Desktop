@@ -97,6 +97,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         hasPin: !!s.joinPin,
         timeRequestedAt: s.timeRequestAt ? s.timeRequestAt.toISOString() : null,
         lockedIndividually: !!s.lockedAt,
+        extraTimePct: s.extraTimePct,
       }
     }),
     groups: groups.map((g) => ({

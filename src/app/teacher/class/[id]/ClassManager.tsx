@@ -37,6 +37,7 @@ import {
   ListChecks,
   ShieldCheck,
   MessageSquare,
+  Timer,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -90,6 +91,7 @@ interface SStudent {
   hasPin: boolean
   timeRequestedAt: string | null
   lockedIndividually: boolean
+  extraTimePct: number
 }
 interface SGroup {
   id: string
@@ -313,6 +315,23 @@ export function ClassManager({ classId }: { classId: string }) {
       load()
     } catch (e) {
       toast.error("Could not change lock", (e as Error).message)
+    }
+  }
+
+  async function setAccommodation(studentId: string, name: string, current: number) {
+    const input = window.prompt(`Extra session time for ${name} as a % (50 = 1.5×, 100 = 2×; 0 to clear):`, String(current))
+    if (input === null) return
+    const pct = Math.round(Number(input))
+    if (!Number.isFinite(pct) || pct < 0 || pct > 200) {
+      toast.error("Enter a number from 0 to 200")
+      return
+    }
+    try {
+      await api(`/api/students/${studentId}/accommodation`, { method: "POST", body: { extraTimePct: pct } })
+      toast.success(pct > 0 ? `${name}: +${pct}% session time` : `Cleared ${name}'s extra time`)
+      load()
+    } catch (e) {
+      toast.error("Could not save accommodation", (e as Error).message)
     }
   }
 
@@ -973,6 +992,7 @@ export function ClassManager({ classId }: { classId: string }) {
                   onPin={() => setStudentPin(s.id, s.name)}
                   onNudge={() => nudgeStudent(s.id, s.name)}
                   onLock={() => lockStudent(s.id, s.name, !s.lockedIndividually)}
+                  onAccommodation={() => setAccommodation(s.id, s.name, s.extraTimePct)}
                 />
               ))}
             </div>
@@ -1034,6 +1054,7 @@ function StudentCard({
   onPin,
   onNudge,
   onLock,
+  onAccommodation,
 }: {
   student: SStudent
   monthlyUnlimited: boolean
@@ -1047,6 +1068,7 @@ function StudentCard({
   onPin: () => void
   onNudge: () => void
   onLock: () => void
+  onAccommodation: () => void
 }) {
   const m = student.machine
   const isActive = m && ACTIVE.includes(m.status)
@@ -1087,6 +1109,11 @@ function StudentCard({
                 <Lock className="size-3" /> Locked
               </span>
             )}
+            {student.extraTimePct > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                <Timer className="size-3" /> +{student.extraTimePct}%
+              </span>
+            )}
             {requirePin && (
               <button
                 onClick={onPin}
@@ -1103,6 +1130,16 @@ function StudentCard({
             )}
           </div>
         </div>
+        <button
+          onClick={onAccommodation}
+          title="Set extra session time (IEP/504 accommodation)"
+          className={cn(
+            "cursor-pointer rounded-md p-1 transition hover:bg-accent",
+            student.extraTimePct > 0 ? "text-emerald-600" : "text-muted-foreground hover:text-primary",
+          )}
+        >
+          <Timer className="size-4" />
+        </button>
         <button
           onClick={onLock}
           title={student.lockedIndividually ? "Unlock this student's screen" : "Lock this student's screen"}

@@ -353,6 +353,8 @@ model Student {
   // Individual focus lock — teacher freezes just this student's screen (vs the whole class).
   lockedAt   DateTime?
   lockMessage String?
+  // Accommodation (IEP/504): extra session time as a percent, applied at boot (capped by plan).
+  extraTimePct Int @default(0)
 
   // OneRoster/SIS identity + soft-delete marker for roster sync de-provisioning.
   sourcedId  String?
