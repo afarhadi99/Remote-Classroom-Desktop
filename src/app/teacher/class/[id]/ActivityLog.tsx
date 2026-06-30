@@ -12,6 +12,7 @@ import {
   Clock,
   Coins,
   ScrollText,
+  ShieldCheck,
 } from "lucide-react"
 import { Spinner } from "@/components/brand"
 import { Card } from "@/components/ui/card"
@@ -111,6 +112,14 @@ export function ActivityLog({
             className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground transition hover:border-foreground/20"
           >
             <Download className="size-3.5" /> Export CSV
+          </a>
+          <a
+            href={`/api/classes/${classId}/audit/manifest`}
+            download={`audit-manifest-${classId}.json`}
+            title="Download a signed integrity digest of this log for compliance records"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground transition hover:border-foreground/20"
+          >
+            <ShieldCheck className="size-3.5" /> Signed manifest
           </a>
         </div>
         {!events ? (
