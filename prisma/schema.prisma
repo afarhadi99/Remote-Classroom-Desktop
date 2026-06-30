@@ -335,6 +335,9 @@ model Student {
   joinPin    String?
   // Low-bandwidth desktop streaming preference (persisted per student).
   connectionSaver Boolean @default(false)
+  // Private 1:1 message from the teacher to just this student (null = none).
+  nudge      String?
+  nudgeAt    DateTime?
 
   // OneRoster/SIS identity + soft-delete marker for roster sync de-provisioning.
   sourcedId  String?

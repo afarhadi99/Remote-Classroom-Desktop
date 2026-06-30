@@ -35,6 +35,8 @@ import {
   ClipboardList,
   GraduationCap,
   ListChecks,
+  ShieldCheck,
+  MessageSquare,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -50,6 +52,7 @@ import { ScheduleModal } from "@/components/ScheduleModal"
 import { RosterModal } from "@/components/RosterModal"
 import { AnnounceModal } from "@/components/AnnounceModal"
 import { PollModal } from "@/components/PollModal"
+import { PreflightModal } from "@/components/PreflightModal"
 import { AssignmentsModal } from "@/components/AssignmentsModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
@@ -160,6 +163,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [rosterOpen, setRosterOpen] = useState(false)
   const [announceOpen, setAnnounceOpen] = useState(false)
   const [pollOpen, setPollOpen] = useState(false)
+  const [preflightOpen, setPreflightOpen] = useState(false)
   const [pinBusy, setPinBusy] = useState(false)
   const [nrpsBusy, setNrpsBusy] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -282,6 +286,18 @@ export function ClassManager({ classId }: { classId: string }) {
       toast.error("Could not change PIN setting", (e as Error).message)
     } finally {
       setPinBusy(false)
+    }
+  }
+
+  async function nudgeStudent(studentId: string, name: string) {
+    const text = window.prompt(`Private message to ${name} (leave blank to clear):`)
+    if (text === null) return
+    try {
+      await api(`/api/students/${studentId}/nudge`, { method: "POST", body: { text: text.trim() || null } })
+      toast.success(text.trim() ? `Sent ${name} a private note` : `Cleared ${name}'s note`)
+      load()
+    } catch (e) {
+      toast.error("Could not send message", (e as Error).message)
     }
   }
 
@@ -832,6 +848,9 @@ export function ClassManager({ classId }: { classId: string }) {
                 <Button variant="outline" onClick={prewarm} disabled={prewarming || students.length === 0}>
                   {prewarming ? <Spinner /> : <Flame className="size-4" />} Pre-warm
                 </Button>
+                <Button variant="outline" onClick={() => setPreflightOpen(true)}>
+                  <ShieldCheck className="size-4" /> Class ready?
+                </Button>
                 {settingsTouched && (
                   <Button variant="ghost" onClick={saveSettings} disabled={savingSettings}>
                     {savingSettings ? <Spinner /> : <Settings2 className="size-4" />} Save as default
@@ -893,6 +912,7 @@ export function ClassManager({ classId }: { classId: string }) {
                   onExtend={(mid) => extendTime(mid, 10)}
                   requirePin={classroom.requireJoinPin}
                   onPin={() => setStudentPin(s.id, s.name)}
+                  onNudge={() => nudgeStudent(s.id, s.name)}
                 />
               ))}
             </div>
@@ -936,6 +956,7 @@ export function ClassManager({ classId }: { classId: string }) {
         onOpenChange={setAssignmentsOpen}
       />
       <PollModal classId={classId} open={pollOpen} onOpenChange={setPollOpen} />
+      <PreflightModal classId={classId} open={preflightOpen} onOpenChange={setPreflightOpen} />
     </main>
   )
 }
@@ -951,6 +972,7 @@ function StudentCard({
   onExtend,
   requirePin,
   onPin,
+  onNudge,
 }: {
   student: SStudent
   monthlyUnlimited: boolean
@@ -962,6 +984,7 @@ function StudentCard({
   onExtend: (machineId: string) => void
   requirePin: boolean
   onPin: () => void
+  onNudge: () => void
 }) {
   const m = student.machine
   const isActive = m && ACTIVE.includes(m.status)
@@ -1008,6 +1031,13 @@ function StudentCard({
             )}
           </div>
         </div>
+        <button
+          onClick={onNudge}
+          title="Send a private message"
+          className="cursor-pointer rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-primary"
+        >
+          <MessageSquare className="size-4" />
+        </button>
         {m && <OsIcon os={m.os} className="size-4 text-muted-foreground" />}
       </div>
 

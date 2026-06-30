@@ -51,6 +51,7 @@ interface Payload {
     responded: boolean
     myChoice: number | null
   } | null
+  nudge: { text: string; at: string } | null
 }
 
 export function StudentDashboard() {
@@ -61,6 +62,7 @@ export function StudentDashboard() {
   const [filesOpen, setFilesOpen] = useState(false)
   const [flagBusy, setFlagBusy] = useState(false)
   const [dismissedAnn, setDismissedAnn] = useState<string | null>(null)
+  const [dismissedNudge, setDismissedNudge] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -142,7 +144,7 @@ export function StudentDashboard() {
     )
   }
 
-  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group, activePoll } = data
+  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group, activePoll, nudge } = data
 
   async function respondPoll(body: { choice?: number; text?: string }) {
     if (!activePoll) return
@@ -209,6 +211,19 @@ export function StudentDashboard() {
             className="cursor-pointer rounded p-0.5 text-muted-foreground transition hover:text-foreground"
             title="Dismiss"
           >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {nudge && nudge.at !== dismissedNudge && (
+        <div className="mt-5 flex items-start gap-2 rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+          <Hand className="mt-0.5 size-4 shrink-0 text-indigo-500" />
+          <span className="flex-1">
+            <span className="font-semibold">A note from your teacher: </span>
+            {nudge.text}
+          </span>
+          <button onClick={() => setDismissedNudge(nudge.at)} className="cursor-pointer rounded p-0.5 text-indigo-400 transition hover:text-indigo-700" title="Dismiss">
             <X className="size-4" />
           </button>
         </div>

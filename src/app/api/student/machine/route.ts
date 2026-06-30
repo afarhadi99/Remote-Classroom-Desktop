@@ -108,5 +108,6 @@ export async function GET() {
     flag: studentRow.flaggedAt ? { kind: studentRow.flagKind, at: studentRow.flaggedAt.toISOString() } : null,
     group: group ? { id: group.id, name: group.name } : null,
     activePoll,
+    nudge: studentRow.nudge ? { text: studentRow.nudge, at: studentRow.nudgeAt!.toISOString() } : null,
   })
 }
