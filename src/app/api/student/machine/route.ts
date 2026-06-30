@@ -32,6 +32,26 @@ export async function GET() {
     ? await prisma.classGroup.findUnique({ where: { id: studentRow.groupId } })
     : null
 
+  // Live poll / exit ticket pushed to the class (if any is open).
+  const openPoll = await prisma.poll.findFirst({
+    where: { classroomId: studentRow.classroomId, closedAt: null },
+    orderBy: { openedAt: 'desc' },
+  })
+  let activePoll = null
+  if (openPoll) {
+    const mine = await prisma.pollResponse.findUnique({
+      where: { pollId_studentId: { pollId: openPoll.id, studentId: student.id } },
+    })
+    activePoll = {
+      id: openPoll.id,
+      prompt: openPoll.prompt,
+      type: openPoll.type,
+      options: (openPoll.options as string[] | null) ?? [],
+      responded: !!mine,
+      myChoice: mine?.choice ?? null,
+    }
+  }
+
   const classroom = studentRow.classroom
   const plan = getPlan(classroom.teacher.plan)
   const usage = monthlyUsage(studentRow, plan)
@@ -87,5 +107,6 @@ export async function GET() {
     spotlight,
     flag: studentRow.flaggedAt ? { kind: studentRow.flagKind, at: studentRow.flaggedAt.toISOString() } : null,
     group: group ? { id: group.id, name: group.name } : null,
+    activePoll,
   })
 }

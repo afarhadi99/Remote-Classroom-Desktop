@@ -92,6 +92,7 @@ model Classroom {
   schedules          ClassSchedule[]
   groups             ClassGroup[]
   assignments        Assignment[]
+  polls              Poll[]
 
   @@unique([ltiPlatformId, ltiContextId])
   @@index([teacherId, sourcedId])
@@ -377,4 +378,42 @@ model Machine {
   @@index([studentId])
   @@index([groupId])
   @@index([status])
+}
+
+// Singleton heartbeat written by the in-process sweeper, so /api/health/ready can tell
+// whether background processing is alive across requests on the single Node process.
+model SweeperRun {
+  id             String    @id // always "singleton"
+  lastStartedAt  DateTime?
+  lastFinishedAt DateTime?
+  lastError      String?
+  durationMs     Int       @default(0)
+  ticks          Int       @default(0)
+}
+
+// A live formative-assessment poll / exit ticket pushed to every student in a class.
+model Poll {
+  id          String         @id @default(cuid())
+  classroomId String
+  classroom   Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  prompt      String
+  type        String         @default("mcq") // mcq | short
+  options     Json? // string[] for mcq
+  openedAt    DateTime       @default(now())
+  closedAt    DateTime?
+  responses   PollResponse[]
+
+  @@index([classroomId])
+}
+
+model PollResponse {
+  id        String   @id @default(cuid())
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  studentId String
+  choice    Int? // selected option index (mcq)
+  text      String? // free text (short answer)
+  createdAt DateTime @default(now())
+
+  @@unique([pollId, studentId])
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock, Eye, Radio, Hand, Flag, UsersRound, Megaphone, X } from "lucide-react"
+import { Rocket, HardDrive, Clock, AlertTriangle, Hourglass, FolderOpen, Lock, Eye, Radio, Hand, Flag, UsersRound, Megaphone, X, ListChecks, Check, Send } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { DesktopViewer } from "@/components/DesktopViewer"
 import { FilesModal } from "@/components/FilesModal"
@@ -9,6 +9,7 @@ import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { api, formatDurationLabel } from "@/lib/client"
+import { cn } from "@/lib/utils"
 import type { OsType } from "@/lib/os"
 
 interface SMachine {
@@ -42,6 +43,14 @@ interface Payload {
   spotlight: { tileUrl: string; presenterName: string | null } | null
   flag: { kind: string | null; at: string } | null
   group: { id: string; name: string } | null
+  activePoll: {
+    id: string
+    prompt: string
+    type: string
+    options: string[]
+    responded: boolean
+    myChoice: number | null
+  } | null
 }
 
 export function StudentDashboard() {
@@ -133,7 +142,18 @@ export function StudentDashboard() {
     )
   }
 
-  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group } = data
+  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group, activePoll } = data
+
+  async function respondPoll(body: { choice?: number; text?: string }) {
+    if (!activePoll) return
+    try {
+      await api(`/api/classes/${classroom.id}/polls/${activePoll.id}/respond`, { method: "POST", body })
+      toast.success("Answer submitted")
+      load()
+    } catch (err) {
+      toast.error("Could not submit answer", (err as Error).message)
+    }
+  }
   const isRunning = machine?.status === "RUNNING" && machine.previewUrl
   const isBooting = machine && machine.status === "PROVISIONING"
 
@@ -193,6 +213,8 @@ export function StudentDashboard() {
           </button>
         </div>
       )}
+
+      {activePoll && <PollCard poll={activePoll} onSubmit={respondPoll} />}
 
       {isRunning ? (
         <div className="mt-5 space-y-4">
@@ -270,6 +292,56 @@ export function StudentDashboard() {
         onOpenChange={setFilesOpen}
       />
     </main>
+  )
+}
+
+function PollCard({
+  poll,
+  onSubmit,
+}: {
+  poll: { id: string; prompt: string; type: string; options: string[]; responded: boolean; myChoice: number | null }
+  onSubmit: (body: { choice?: number; text?: string }) => void
+}) {
+  const [text, setText] = useState("")
+  return (
+    <Card className="mt-5 gap-3 border-primary/30 bg-primary/5 p-5">
+      <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
+        <ListChecks className="size-4" /> {poll.responded ? "Answer submitted — you can change it" : "Your teacher asks"}
+      </p>
+      <p className="text-lg font-medium text-foreground">{poll.prompt}</p>
+      {poll.type === "mcq" ? (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {poll.options.map((opt, i) => (
+            <button
+              key={i}
+              onClick={() => onSubmit({ choice: i })}
+              className={cn(
+                "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition",
+                poll.myChoice === i
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-foreground hover:border-primary/40",
+              )}
+            >
+              {poll.myChoice === i && <Check className="size-4 shrink-0" />}
+              {opt}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && text.trim() && onSubmit({ text: text.trim() })}
+            placeholder="Type your answer…"
+            className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+          />
+          <Button variant="ink" onClick={() => text.trim() && onSubmit({ text: text.trim() })}>
+            <Send className="size-3.5" /> Send
+          </Button>
+        </div>
+      )}
+    </Card>
   )
 }
 

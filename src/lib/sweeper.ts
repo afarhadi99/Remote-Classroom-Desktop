@@ -1,46 +1,90 @@
 import 'server-only'
+import { prisma } from './prisma'
 import { sweepExpiredMachines, runScheduledBoots, runScheduledShutdowns } from './machines'
 import { deliverDueWebhooks } from './webhooks'
 import { drainGradeJobs } from './lti-services'
 
 const globalForSweeper = globalThis as unknown as { rcdSweeper?: NodeJS.Timeout }
 
+export interface SweeperResult {
+  expired: number
+  stuck: number
+  scheduledBoots: number
+  scheduledShutdowns: number
+  webhooksProcessed: number
+  gradeJobsProcessed: number
+}
+
+/**
+ * Runs one full sweep (time limits, schedules, webhooks, grade jobs) and records a heartbeat
+ * in SweeperRun so /api/health/ready can detect a dead background loop. Each task is isolated
+ * so one failure doesn't abort the rest. Used by both the in-process interval and /api/cron/sweep.
+ */
+export async function runSweeperTick(): Promise<SweeperResult> {
+  const startedAt = new Date()
+  const out: SweeperResult = { expired: 0, stuck: 0, scheduledBoots: 0, scheduledShutdowns: 0, webhooksProcessed: 0, gradeJobsProcessed: 0 }
+  const errors: string[] = []
+
+  try {
+    const res = await sweepExpiredMachines()
+    out.expired = res.expired
+    out.stuck = res.stuck
+  } catch (err) {
+    errors.push(`sweep: ${(err as Error).message}`)
+  }
+  try {
+    out.scheduledBoots = await runScheduledBoots()
+  } catch (err) {
+    errors.push(`boots: ${(err as Error).message}`)
+  }
+  try {
+    out.scheduledShutdowns = await runScheduledShutdowns()
+  } catch (err) {
+    errors.push(`shutdowns: ${(err as Error).message}`)
+  }
+  try {
+    out.webhooksProcessed = await deliverDueWebhooks()
+  } catch (err) {
+    errors.push(`webhooks: ${(err as Error).message}`)
+  }
+  try {
+    out.gradeJobsProcessed = await drainGradeJobs()
+  } catch (err) {
+    errors.push(`grades: ${(err as Error).message}`)
+  }
+
+  const finishedAt = new Date()
+  await prisma.sweeperRun
+    .upsert({
+      where: { id: 'singleton' },
+      create: {
+        id: 'singleton',
+        lastStartedAt: startedAt,
+        lastFinishedAt: finishedAt,
+        lastError: errors.length ? errors.join('; ').slice(0, 500) : null,
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        ticks: 1,
+      },
+      update: {
+        lastStartedAt: startedAt,
+        lastFinishedAt: finishedAt,
+        lastError: errors.length ? errors.join('; ').slice(0, 500) : null,
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        ticks: { increment: 1 },
+      },
+    })
+    .catch(() => {})
+
+  return out
+}
+
 /** Starts a single in-process interval that enforces time limits and fires schedules. */
 export function startSweeper() {
   if (globalForSweeper.rcdSweeper) return
-  globalForSweeper.rcdSweeper = setInterval(async () => {
-    try {
-      const res = await sweepExpiredMachines()
-      if (res.expired || res.stuck) {
-        console.log(`[sweeper] expired=${res.expired} stuck=${res.stuck}`)
-      }
-    } catch (err) {
-      console.error('[sweeper] sweep error', err)
-    }
-    try {
-      const fired = await runScheduledBoots()
-      if (fired) console.log(`[sweeper] fired ${fired} scheduled class boot(s)`)
-    } catch (err) {
-      console.error('[sweeper] schedule error', err)
-    }
-    try {
-      const off = await runScheduledShutdowns()
-      if (off) console.log(`[sweeper] fired ${off} scheduled class shutdown(s)`)
-    } catch (err) {
-      console.error('[sweeper] bell-shutdown error', err)
-    }
-    try {
-      const delivered = await deliverDueWebhooks()
-      if (delivered) console.log(`[sweeper] processed ${delivered} webhook deliver(y/ies)`)
-    } catch (err) {
-      console.error('[sweeper] webhook error', err)
-    }
-    try {
-      const graded = await drainGradeJobs()
-      if (graded) console.log(`[sweeper] processed ${graded} LTI grade job(s)`)
-    } catch (err) {
-      console.error('[sweeper] grade-passback error', err)
-    }
+  // Run once immediately so the heartbeat is fresh right after boot (and due schedules fire).
+  void runSweeperTick().catch((err) => console.error('[sweeper] initial tick error', err))
+  globalForSweeper.rcdSweeper = setInterval(() => {
+    runSweeperTick().catch((err) => console.error('[sweeper] tick error', err))
   }, 30_000)
   console.log('[sweeper] started (30s interval)')
 }

@@ -34,6 +34,7 @@ import {
   KeyRound,
   ClipboardList,
   GraduationCap,
+  ListChecks,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
 import { CopyButton } from "@/components/CopyButton"
@@ -48,6 +49,7 @@ import { AttendanceModal } from "@/components/AttendanceModal"
 import { ScheduleModal } from "@/components/ScheduleModal"
 import { RosterModal } from "@/components/RosterModal"
 import { AnnounceModal } from "@/components/AnnounceModal"
+import { PollModal } from "@/components/PollModal"
 import { AssignmentsModal } from "@/components/AssignmentsModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
@@ -157,6 +159,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [rosterOpen, setRosterOpen] = useState(false)
   const [announceOpen, setAnnounceOpen] = useState(false)
+  const [pollOpen, setPollOpen] = useState(false)
   const [pinBusy, setPinBusy] = useState(false)
   const [nrpsBusy, setNrpsBusy] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -504,6 +507,9 @@ export function ClassManager({ classId }: { classId: string }) {
               >
                 <Megaphone className="size-3.5" />
                 {classroom.announcement ? "Announcing" : "Announce"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setPollOpen(true)} title="Run a live poll / exit ticket">
+                <ListChecks className="size-3.5" /> Poll
               </Button>
               <Button
                 variant={classroom.locked ? "ink" : "outline"}
@@ -929,6 +935,7 @@ export function ClassManager({ classId }: { classId: string }) {
         open={assignmentsOpen}
         onOpenChange={setAssignmentsOpen}
       />
+      <PollModal classId={classId} open={pollOpen} onOpenChange={setPollOpen} />
     </main>
   )
 }
