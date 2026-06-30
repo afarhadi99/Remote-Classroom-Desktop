@@ -15,6 +15,17 @@ export async function POST() {
 
   const classroom = await prisma.classroom.findUnique({ where: { id: student.classroomId } })
   if (!classroom) return apiError('Your class no longer exists.', 404)
+
+  // Quiet hours: students can only self-boot during the configured class window (teacher boots
+  // bypass this). Checked before the self-service flag so the message is specific.
+  const { withinBootWindow, minuteOfDay, formatMinute } = await import('@/lib/hours')
+  if (!withinBootWindow(classroom.bootWindowStart, classroom.bootWindowEnd, minuteOfDay())) {
+    return apiError(
+      `Desktops are only available during class hours (${formatMinute(classroom.bootWindowStart!)}–${formatMinute(classroom.bootWindowEnd!)}).`,
+      403,
+    )
+  }
+
   if (!classroom.allowStudentBoot) {
     return apiError('Your teacher has disabled self-service booting for this class.', 403)
   }

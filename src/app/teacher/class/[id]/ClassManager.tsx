@@ -111,6 +111,8 @@ interface SClassroom {
   examMode: boolean
   examMessage: string | null
   safeguardKeywords: string | null
+  bootWindowStart: number | null
+  bootWindowEnd: number | null
   requireJoinPin: boolean
   announcement: string | null
   locked: boolean
@@ -136,6 +138,9 @@ interface ClassData {
 
 const ACTIVE = ["PROVISIONING", "RUNNING"]
 
+const minToTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
+const timeToMin = (s: string) => { const [h, m] = s.split(":").map(Number); return h * 60 + m }
+
 export function ClassManager({ classId }: { classId: string }) {
   const toast = useToast()
   const [data, setData] = useState<ClassData | null>(null)
@@ -146,6 +151,8 @@ export function ClassManager({ classId }: { classId: string }) {
   const [allowedDomains, setAllowedDomains] = useState("")
   const [snapshot, setSnapshot] = useState("")
   const [safeguardKeywords, setSafeguardKeywords] = useState("")
+  const [bootStart, setBootStart] = useState("")
+  const [bootEnd, setBootEnd] = useState("")
   const [resolvingFlags, setResolvingFlags] = useState(false)
   const [examMode, setExamMode] = useState(false)
   const [examBusy, setExamBusy] = useState(false)
@@ -186,6 +193,8 @@ export function ClassManager({ classId }: { classId: string }) {
         setAllowedDomains(d.classroom.allowedDomains ?? "")
         setSnapshot(d.classroom.snapshot ?? "")
         setSafeguardKeywords(d.classroom.safeguardKeywords ?? "")
+        setBootStart(d.classroom.bootWindowStart != null ? minToTime(d.classroom.bootWindowStart) : "")
+        setBootEnd(d.classroom.bootWindowEnd != null ? minToTime(d.classroom.bootWindowEnd) : "")
         initialized.current = true
       }
     } catch (err) {
@@ -212,6 +221,8 @@ export function ClassManager({ classId }: { classId: string }) {
           allowedDomains: allowedDomains.trim() || null,
           snapshot: snapshot.trim() || null,
           safeguardKeywords: safeguardKeywords.trim() || null,
+          bootWindowStart: bootStart ? timeToMin(bootStart) : null,
+          bootWindowEnd: bootEnd ? timeToMin(bootEnd) : null,
         },
       })
       setSettingsTouched(false)
@@ -827,6 +838,23 @@ export function ClassManager({ classId }: { classId: string }) {
                 )}
                 <p className="text-xs text-muted-foreground">
                   Enforced at the network layer on desktops booted after saving.
+                </p>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <Clock3 className="size-3.5" /> Allowed boot hours <span className="font-normal normal-case">(students)</span>
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input type="time" value={bootStart} onChange={(e) => { setBootStart(e.target.value); setSettingsTouched(true) }} className="h-10 w-auto" />
+                  <span className="text-sm text-muted-foreground">to</span>
+                  <Input type="time" value={bootEnd} onChange={(e) => { setBootEnd(e.target.value); setSettingsTouched(true) }} className="h-10 w-auto" />
+                  {(bootStart || bootEnd) && (
+                    <Button variant="ghost" size="sm" onClick={() => { setBootStart(""); setBootEnd(""); setSettingsTouched(true) }}>Clear</Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Outside these hours students can&apos;t boot their own desktop (you still can). Leave blank for no limit.
                 </p>
               </div>
 

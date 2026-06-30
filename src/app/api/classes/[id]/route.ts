@@ -65,6 +65,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       examMode: classroom.examMode,
       examMessage: classroom.examMessage,
       safeguardKeywords: classroom.safeguardKeywords,
+      bootWindowStart: classroom.bootWindowStart,
+      bootWindowEnd: classroom.bootWindowEnd,
       requireJoinPin: classroom.requireJoinPin,
       announcement: classroom.announcement,
       locked: !!classroom.lockedAt,
@@ -124,6 +126,8 @@ const patchSchema = z.object({
   examMessage: z.string().max(200).nullable().optional(),
   requireJoinPin: z.boolean().optional(),
   safeguardKeywords: z.string().max(2000).nullable().optional(),
+  bootWindowStart: z.number().int().min(0).max(1439).nullable().optional(),
+  bootWindowEnd: z.number().int().min(0).max(1439).nullable().optional(),
 })
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {

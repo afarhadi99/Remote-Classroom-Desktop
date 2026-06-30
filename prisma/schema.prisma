@@ -77,6 +77,10 @@ model Classroom {
   examMessage        String?
   // Safeguarding: comma-separated watch-terms; student notes/answers matching them raise an alert.
   safeguardKeywords  String?
+  // Quiet hours: students may only self-boot when the minute-of-day is within this window
+  // (server local time). null = always allowed. Wrap-around (overnight) supported.
+  bootWindowStart    Int?
+  bootWindowEnd      Int?
   // "Eyes on me" focus lock — when set, students see a full-screen lock over their desktop.
   lockedAt           DateTime?
   lockMessage        String?
