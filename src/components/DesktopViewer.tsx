@@ -7,18 +7,19 @@ import { OsIcon, Spinner } from "@/components/brand"
 import { api, formatRemaining } from "@/lib/client"
 import { cn } from "@/lib/utils"
 
-// Rewrite a noVNC preview URL for low-bandwidth viewing: aggressive compression, lower
-// quality, and local scaling (no server-side resize round-trips). Same lever the monitor
-// wall already uses for view-only tiles.
-function applyConnectionSaver(url: string, saver: boolean): string {
-  if (!saver) return url
+// Build the noVNC iframe URL. ALWAYS uses resize=scale so the remote desktop is scaled to
+// fit the viewport (embedded or fullscreen) and is never clipped/cut off. Connection-saver
+// additionally lowers quality + compression for weak Wi-Fi.
+function buildDesktopSrc(url: string, saver: boolean): string {
   try {
     const qIdx = url.indexOf("?")
     if (qIdx === -1) return url
     const sp = new URLSearchParams(url.slice(qIdx + 1))
-    sp.set("quality", "2")
-    sp.set("compression", "9")
-    sp.set("resize", "scale")
+    sp.set("resize", "scale") // fit-to-screen, no clipping
+    if (saver) {
+      sp.set("quality", "2")
+      sp.set("compression", "9")
+    }
     return `${url.slice(0, qIdx)}?${sp.toString()}`
   } catch {
     return url
@@ -46,6 +47,7 @@ export function DesktopViewer({
   compact = false,
   watchMachineId,
   connectionSaver,
+  autoFullscreen,
 }: {
   machine: ViewerMachine
   onStop?: () => void
@@ -55,6 +57,8 @@ export function DesktopViewer({
   watchMachineId?: string
   /** Student low-bandwidth mode: initial value enables a toggle that persists the pref. */
   connectionSaver?: boolean
+  /** Auto-enter fullscreen once the desktop is live (student view). */
+  autoFullscreen?: boolean
 }) {
   const toast = useToast()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -63,6 +67,7 @@ export function DesktopViewer({
   const [iframeKey, setIframeKey] = useState(0)
   const [saver, setSaver] = useState(!!connectionSaver)
   const showSaverToggle = connectionSaver !== undefined // only in the student's own viewer
+  const triedFsRef = useRef(false)
   const firedRef = useRef<Set<number>>(new Set())
   const lastExpiry = useRef<string | null>(null)
 
@@ -112,6 +117,23 @@ export function DesktopViewer({
     document.addEventListener("fullscreenchange", onFsChange)
     return () => document.removeEventListener("fullscreenchange", onFsChange)
   }, [])
+
+  // Auto-enter fullscreen the moment the student's desktop is live. Browsers require a
+  // transient user activation; if it's blocked, fall back to entering on the next click/tap.
+  useEffect(() => {
+    if (!autoFullscreen || !machine.previewUrl || triedFsRef.current) return
+    triedFsRef.current = true
+    const enter = () => containerRef.current?.requestFullscreen?.().catch(() => false)
+    Promise.resolve(enter()).then((ok) => {
+      if (ok === false) {
+        const once = () => {
+          containerRef.current?.requestFullscreen?.().catch(() => {})
+          document.removeEventListener("pointerdown", once)
+        }
+        document.addEventListener("pointerdown", once, { once: true })
+      }
+    })
+  }, [autoFullscreen, machine.previewUrl])
 
   // Teacher "watching" heartbeat -> student sees a transparency banner.
   useEffect(() => {
@@ -219,7 +241,7 @@ export function DesktopViewer({
         {machine.previewUrl ? (
           <iframe
             key={iframeKey}
-            src={applyConnectionSaver(machine.previewUrl, saver)}
+            src={buildDesktopSrc(machine.previewUrl, saver)}
             className="absolute inset-0 size-full"
             allow="clipboard-read; clipboard-write; fullscreen"
             title="Cloud desktop"

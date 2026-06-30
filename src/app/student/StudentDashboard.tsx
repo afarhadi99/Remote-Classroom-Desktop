@@ -225,6 +225,7 @@ export function StudentDashboard() {
             onStop={classroom.examMode ? undefined : stop}
             stopping={stopping}
             connectionSaver={student.connectionSaver}
+            autoFullscreen
           />
           <Card className="flex-row items-center gap-3 p-4">
             <FolderOpen className="size-5 shrink-0 text-primary" />
