@@ -1056,6 +1056,11 @@ export function ClassManager({ classId }: { classId: string }) {
                   <ClipboardList className="size-3.5" /> Gradebook CSV
                 </a>
               </Button>
+              <Button asChild variant="outline" size="sm">
+                <a href={`/api/classes/${classId}/notes/export`} download title="Download every private note as a CSV progress report">
+                  <StickyNote className="size-3.5" /> Notes CSV
+                </a>
+              </Button>
             </div>
           </div>
           {students.length === 0 ? (
