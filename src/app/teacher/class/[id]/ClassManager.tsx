@@ -171,6 +171,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [settingsTouched, setSettingsTouched] = useState(false)
   const [bootingAll, setBootingAll] = useState(false)
   const [stoppingAll, setStoppingAll] = useState(false)
+  const [extendingAll, setExtendingAll] = useState(false)
   const [prewarming, setPrewarming] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
   const [busy, setBusy] = useState<Record<string, boolean>>({})
@@ -494,6 +495,26 @@ export function ClassManager({ classId }: { classId: string }) {
       toast.error("Could not shut down", (err as Error).message)
     } finally {
       setStoppingAll(false)
+    }
+  }
+
+  async function extendAll(deltaMinutes: number) {
+    setExtendingAll(true)
+    try {
+      const res = await api<{ affected: number }>(`/api/classes/${classId}/extend-all`, {
+        method: "POST",
+        body: { deltaMinutes },
+      })
+      toast.success(
+        deltaMinutes >= 0
+          ? `Added ${deltaMinutes} min to ${res.affected} running desktop${res.affected === 1 ? "" : "s"}`
+          : `Removed ${Math.abs(deltaMinutes)} min from ${res.affected} running desktop${res.affected === 1 ? "" : "s"}`,
+      )
+      load()
+    } catch (err) {
+      toast.error("Could not adjust time", (err as Error).message)
+    } finally {
+      setExtendingAll(false)
     }
   }
 
@@ -981,6 +1002,12 @@ export function ClassManager({ classId }: { classId: string }) {
                 </Button>
                 <Button variant="outline" onClick={stopAll} disabled={stoppingAll || activeCount === 0} className="text-destructive hover:bg-destructive/10">
                   {stoppingAll ? <Spinner /> : <Power className="size-4" />} Shut down all
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => extendAll(10)} disabled={extendingAll || activeCount === 0} title="Add 10 minutes to every running desktop">
+                  {extendingAll ? <Spinner className="size-3.5" /> : <Clock3 className="size-3.5" />} +10 min all
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => extendAll(-5)} disabled={extendingAll || activeCount === 0} title="Trim 5 minutes from every running desktop">
+                  {extendingAll ? <Spinner className="size-3.5" /> : <Clock3 className="size-3.5" />} -5 min all
                 </Button>
                 <Button variant="outline" onClick={() => setScheduleOpen(true)}>
                   <CalendarClock className="size-4" /> Schedule
