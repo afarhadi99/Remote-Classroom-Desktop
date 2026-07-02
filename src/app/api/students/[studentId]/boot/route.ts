@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
 import { bootMachineForStudent, bootMachineForGroup, serializeMachine } from '@/lib/machines'
@@ -33,8 +34,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
 
   // A grouped student shares their group's desktop — boot that instead of a stray solo one.
   const result = student.groupId
-    ? await bootMachineForGroup({ classroomId: student.classroomId, groupId: student.groupId, os, durationMin })
-    : await bootMachineForStudent({ classroomId: student.classroomId, studentId: student.id, os, durationMin })
+    ? await bootMachineForGroup({ classroomId: student.classroomId, groupId: student.groupId, os, durationMin, background: after })
+    : await bootMachineForStudent({ classroomId: student.classroomId, studentId: student.id, os, durationMin, background: after })
   if (!result.ok) return apiError(result.reason, 403)
 
   await logEvent({

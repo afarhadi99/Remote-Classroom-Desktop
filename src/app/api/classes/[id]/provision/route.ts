@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
 import { bootMachineForStudent, bootMachineForGroup } from '@/lib/machines'
@@ -38,8 +39,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   })
 
   const results = await Promise.all([
-    ...soloStudents.map((s) => bootMachineForStudent({ classroomId: id, studentId: s.id, os, durationMin })),
-    ...groups.map((g) => bootMachineForGroup({ classroomId: id, groupId: g.id, os, durationMin })),
+    ...soloStudents.map((s) => bootMachineForStudent({ classroomId: id, studentId: s.id, os, durationMin, background: after })),
+    ...groups.map((g) => bootMachineForGroup({ classroomId: id, groupId: g.id, os, durationMin, background: after })),
   ])
   const booted = results.filter((r) => r.ok).length
   const skipped = results.length - booted

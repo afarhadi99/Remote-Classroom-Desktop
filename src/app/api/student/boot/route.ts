@@ -1,3 +1,4 @@
+import { after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { apiError, getStudent, json } from '@/lib/api'
 import { bootMachineForStudent, bootMachineForGroup, serializeMachine } from '@/lib/machines'
@@ -38,6 +39,7 @@ export async function POST() {
       groupId: studentRow.groupId,
       os,
       durationMin: classroom.defaultDurationMin,
+      background: after,
     })
     if (!result.ok) return apiError(result.studentReason, 403)
     await logEvent({
@@ -55,6 +57,7 @@ export async function POST() {
     studentId: student.id,
     os,
     durationMin: classroom.defaultDurationMin,
+    background: after,
   })
   if (!result.ok) return apiError(result.studentReason, 403)
 

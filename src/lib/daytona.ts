@@ -1,6 +1,7 @@
 import 'server-only'
 import { Daytona, type Sandbox } from '@daytonaio/sdk'
 import { type OsType, MY_FILES_PATH } from './os'
+import { signDesktopToken } from './desktop-token'
 
 // Snapshot/image per OS. Linux uses the computer-use desktop snapshot (xfce4 + noVNC).
 // Windows uses the gated "windows" class snapshot (must be enabled on the org).
@@ -9,33 +10,41 @@ export const OS_SNAPSHOTS: Record<OsType, string> = {
   windows: 'windows',
 }
 
-// Port that serves the in-browser desktop client for each OS.
+// Port that serves the in-browser desktop client for each OS. Both classes expose
+// standard noVNC on 6080 (confirmed against a live "windows" class sandbox — it is
+// NOT dockur's port 8006, which never becomes reachable on this snapshot).
 const OS_VNC_PORT: Record<OsType, number> = {
   linux: 6080, // noVNC
-  windows: 8006, // dockur web viewer
+  windows: 6080, // noVNC
 }
 
 // Where each student's persistent volume is mounted. Placing it on the Desktop
 // makes a "My-Files" folder appear on the desktop that survives machine restarts.
 export const VOLUME_MOUNT_PATH = MY_FILES_PATH
 
-// Same-origin path prefix handled by the reverse proxy in server.mjs.
+// Path prefix handled by the desktop reverse proxy. Same-origin (relative) in local dev
+// (server.mjs); an absolute URL to the standalone proxy service (e.g. on Railway) when
+// the app and the proxy are split across different hosts.
 const DESKTOP_PROXY_PREFIX = '/desktop/'
+const DESKTOP_PROXY_ORIGIN = (process.env.DESKTOP_PROXY_ORIGIN || '').trim().replace(/\/+$/, '')
 
 /**
- * Given an interactive desktop preview URL (/desktop/<host>/vnc.html?...), builds a
+ * Given an interactive desktop preview URL (.../desktop/<host>/vnc.html?...), builds a
  * VIEW-ONLY, auto-scaled noVNC URL suitable for a monitoring-wall thumbnail. Returns
- * null if the host can't be parsed. Linux/noVNC only.
+ * null if the host can't be parsed. Both OS classes serve noVNC, so this works for either.
+ * Preserves the origin prefix (if any) and the access token from the source URL.
  */
 export function viewOnlyUrlFromPreview(previewUrl: string): string | null {
-  const match = previewUrl.match(/^\/desktop\/([^/]+)\//)
+  const match = previewUrl.match(/^(.*?)\/desktop\/([^/]+)\//)
   if (!match) return null
-  const host = match[1]
-  const wsPath = `${DESKTOP_PROXY_PREFIX.slice(1)}${host}/websockify`
+  const [, origin, host] = match
+  const dtok = previewUrl.match(/[?&]dtok=([^&]+)/)?.[1]
+  const tokenQ = dtok ? `&dtok=${dtok}` : ''
+  const wsPath = `desktop/${host}/websockify${dtok ? `?dtok=${dtok}` : ''}`
   const q =
     'autoconnect=true&reconnect=true&reconnect_delay=2000&view_only=true&resize=scale' +
     '&quality=3&compression=9&show_dot=false&bell=off'
-  return `${DESKTOP_PROXY_PREFIX}${host}/vnc.html?${q}&path=${encodeURIComponent(wsPath)}`
+  return `${origin}/desktop/${host}/vnc.html?${q}${tokenQ}&path=${encodeURIComponent(wsPath)}`
 }
 
 let client: Daytona | null = null
@@ -86,6 +95,12 @@ export interface CreateDesktopOptions {
   networkBlockAll?: boolean
   /** Comma-separated allowlist of domains; everything else is blocked. */
   domainAllowList?: string
+  /**
+   * When the desktop-access token embedded in the preview URL should expire (needed for
+   * the proxy to authorize requests when it runs on a different origin than the app, so
+   * the rcd_session cookie isn't sent). Should outlive the session's expected duration.
+   */
+  tokenExpiresAt: Date
 }
 
 export interface DesktopHandle {
@@ -138,18 +153,15 @@ export async function createDesktop(opts: CreateDesktopOptions): Promise<Desktop
   }
 
   const preview = await sandbox.getPreviewLink(port)
-  // Route the desktop through our same-origin proxy (/desktop/<host>/...) so the
-  // server can inject X-Daytona-Skip-Preview-Warning and skip Daytona's interstitial.
+  // Route the desktop through our proxy (/desktop/<host>/...) so it can inject
+  // X-Daytona-Skip-Preview-Warning, skip Daytona's interstitial, and enforce authorization.
   const host = new URL(preview.url).hostname
-  const base = `${DESKTOP_PROXY_PREFIX}${host}`
+  const base = `${DESKTOP_PROXY_ORIGIN}${DESKTOP_PROXY_PREFIX}${host}`
+  const dtok = await signDesktopToken(sandbox.id, opts.tokenExpiresAt)
 
-  let previewUrl: string
-  if (opts.os === 'linux') {
-    const wsPath = `${DESKTOP_PROXY_PREFIX.slice(1)}${host}/websockify`
-    previewUrl = `${base}/vnc.html?autoconnect=true&resize=remote&reconnect=true&show_dot=true&path=${encodeURIComponent(wsPath)}`
-  } else {
-    previewUrl = `${base}/`
-  }
+  // Both OS classes serve standard noVNC on this port.
+  const wsPath = `${DESKTOP_PROXY_PREFIX.slice(1)}${host}/websockify?dtok=${dtok}`
+  const previewUrl = `${base}/vnc.html?autoconnect=true&resize=remote&reconnect=true&show_dot=true&dtok=${dtok}&path=${encodeURIComponent(wsPath)}`
 
   return { sandboxId: sandbox.id, previewUrl, previewToken: preview.token ?? null }
 }

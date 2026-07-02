@@ -29,9 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       os: m.os,
       status: m.status,
       tileUrl:
-        m.status === 'RUNNING' && m.os === 'linux' && m.previewUrl
-          ? viewOnlyUrlFromPreview(m.previewUrl)
-          : null,
+        m.status === 'RUNNING' && m.previewUrl ? viewOnlyUrlFromPreview(m.previewUrl) : null,
       previewUrl: m.status === 'RUNNING' ? m.previewUrl : null,
       expiresAt: m.expiresAt ? m.expiresAt.toISOString() : null,
       remainingMs: m.status === 'RUNNING' && m.expiresAt ? m.expiresAt.getTime() - now : null,

@@ -1,3 +1,4 @@
+import { after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { apiError, getTeacher, json } from '@/lib/api'
 import { bootMachineForGroup, serializeMachine } from '@/lib/machines'
@@ -23,6 +24,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     groupId,
     os: classroom.defaultOs as OsType,
     durationMin: classroom.defaultDurationMin,
+    background: after,
   })
   if (!result.ok) return apiError(result.reason, 403)
 

@@ -1,3 +1,4 @@
+import { after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { apiError, json } from '@/lib/api'
 import { getApiCaller } from '@/lib/apikeys'
@@ -20,8 +21,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
     const os = student.classroom.defaultOs as OsType
     const durationMin = student.classroom.defaultDurationMin
     const result = student.groupId
-      ? await bootMachineForGroup({ classroomId: student.classroomId, groupId: student.groupId, os, durationMin })
-      : await bootMachineForStudent({ classroomId: student.classroomId, studentId, os, durationMin })
+      ? await bootMachineForGroup({ classroomId: student.classroomId, groupId: student.groupId, os, durationMin, background: after })
+      : await bootMachineForStudent({ classroomId: student.classroomId, studentId, os, durationMin, background: after })
     if (!result.ok) return { status: 403, data: { error: result.reason } }
 
     await logEvent({ classroomId: student.classroomId, studentId, type: 'boot', actorRole: 'system', message: `API: started a desktop for ${student.name}` })

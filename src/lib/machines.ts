@@ -7,6 +7,17 @@ import { getPlan, isUnlimited, currentUsageMonth, type Plan } from './plans'
 import { logEvent } from './events'
 import { estimateCostCents } from './cost'
 
+/**
+ * How to run provisioning after a boot call returns. On a persistent process (local dev,
+ * the sweeper, the standalone Railway service) a plain fire-and-forget is safe — the
+ * process keeps running regardless. On Vercel's serverless functions it is NOT safe: the
+ * invocation can be frozen right after the HTTP response is sent, killing an un-awaited
+ * promise mid-flight. API routes must pass Next's `after()` (from 'next/server') here so
+ * the platform's waitUntil keeps the invocation alive until provisioning finishes.
+ */
+export type BackgroundRunner = (fn: () => Promise<void>) => void
+const fireAndForget: BackgroundRunner = (fn) => void fn()
+
 export const MACHINE_STATUS = {
   PENDING: 'PENDING',
   PROVISIONING: 'PROVISIONING',
@@ -112,7 +123,9 @@ export async function bootMachineForStudent(params: {
   studentId: string
   os: OsType
   durationMin: number
+  background?: BackgroundRunner
 }): Promise<BootResult> {
+  const runInBackground = params.background ?? fireAndForget
   const existing = await prisma.machine.findFirst({
     where: {
       studentId: params.studentId,
@@ -193,7 +206,7 @@ export async function bootMachineForStudent(params: {
       status: 'PROVISIONING',
     },
   })
-  void provisionMachine(machine.id)
+  runInBackground(() => provisionMachine(machine.id))
   return { ok: true, machine }
 }
 
@@ -207,7 +220,9 @@ export async function bootMachineForGroup(params: {
   groupId: string
   os: OsType
   durationMin: number
+  background?: BackgroundRunner
 }): Promise<BootResult> {
+  const runInBackground = params.background ?? fireAndForget
   const existing = await prisma.machine.findFirst({
     where: {
       groupId: params.groupId,
@@ -265,7 +280,7 @@ export async function bootMachineForGroup(params: {
       status: 'PROVISIONING',
     },
   })
-  void provisionMachine(machine.id)
+  runInBackground(() => provisionMachine(machine.id))
   return { ok: true, machine }
 }
 
@@ -313,6 +328,9 @@ export async function provisionMachine(machineId: string): Promise<void> {
     // Internet policy (enforced at the Daytona network layer).
     const netMode = machine.classroom?.netMode ?? 'open'
     const allowed = machine.classroom?.allowedDomains?.trim()
+    // Generous buffer beyond the expected session length so the desktop-access token
+    // embedded in the preview URL comfortably outlives provisioning time + the session.
+    const tokenExpiresAt = new Date(Date.now() + (machine.durationMin + 15) * 60_000)
     const handle = await createDesktop({
       os: machine.os as OsType,
       snapshot: machine.classroom?.snapshot ?? undefined,
@@ -321,6 +339,7 @@ export async function provisionMachine(machineId: string): Promise<void> {
       labels: { machineId },
       networkBlockAll: netMode === 'blocked',
       domainAllowList: netMode === 'allowlist' && allowed ? allowed : undefined,
+      tokenExpiresAt,
     })
 
     const startedAt = new Date()

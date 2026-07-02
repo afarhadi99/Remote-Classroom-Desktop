@@ -2,11 +2,16 @@
   "name": "remote-classroom",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "node server.mjs --dev",
     "next-dev": "next dev",
     "build": "next build",
     "start": "node server.mjs",
+    "build:railway": "node scripts/build-railway.mjs",
+    "start:railway": "node dist/railway-server.js",
     "lint": "eslint"
   },
   "dependencies": {
@@ -43,6 +48,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.28.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "playwright": "^1.61.1",

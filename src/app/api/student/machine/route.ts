@@ -65,11 +65,8 @@ export async function GET() {
       include: { student: true },
     })
     if (presenter && presenter.status === 'RUNNING' && presenter.previewUrl) {
-      const tileUrl =
-        presenter.os === 'linux'
-          ? viewOnlyUrlFromPreview(presenter.previewUrl)
-          : presenter.previewUrl
-      if (tileUrl) spotlight = { tileUrl, presenterName: presenter.student?.name ?? null }
+      const tileUrl = viewOnlyUrlFromPreview(presenter.previewUrl) ?? presenter.previewUrl
+      spotlight = { tileUrl, presenterName: presenter.student?.name ?? null }
     }
   }
 
