@@ -12,6 +12,7 @@
     "start": "node server.mjs",
     "build:railway": "node scripts/build-railway.mjs",
     "start:railway": "node dist/railway-server.js",
+    "postinstall": "prisma generate",
     "lint": "eslint"
   },
   "dependencies": {
