@@ -8,7 +8,7 @@ import { FilesModal } from "@/components/FilesModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { api, formatDurationLabel } from "@/lib/client"
+import { api, formatDurationLabel, formatRemaining } from "@/lib/client"
 import { cn } from "@/lib/utils"
 import type { OsType } from "@/lib/os"
 
@@ -55,6 +55,7 @@ interface Payload {
   timeRequested: boolean
   personalLock: { message: string | null } | null
   agenda: { items: string[]; step: number | null } | null
+  timer: { endsAt: string; label: string | null } | null
 }
 
 export function StudentDashboard() {
@@ -147,7 +148,7 @@ export function StudentDashboard() {
     )
   }
 
-  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group, activePoll, nudge, timeRequested, personalLock, agenda } = data
+  const { classroom, machine, student, usage, beingWatched, spotlight, flag, group, activePoll, nudge, timeRequested, personalLock, agenda, timer } = data
   const locked = classroom.locked || !!personalLock
   const lockMessage = personalLock ? personalLock.message : classroom.lockMessage
 
@@ -246,6 +247,8 @@ export function StudentDashboard() {
           </button>
         </div>
       )}
+
+      {timer && <CountdownBanner endsAt={timer.endsAt} label={timer.label} />}
 
       {agenda && agenda.items.length > 0 && (
         <Card className="mt-5 gap-2 p-5">
@@ -551,6 +554,39 @@ function BootCard({
         )}
       </div>
     </div>
+  )
+}
+
+function CountdownBanner({ endsAt, label }: { endsAt: string; label: string | null }) {
+  const [remainingMs, setRemainingMs] = useState(() => new Date(endsAt).getTime() - Date.now())
+
+  useEffect(() => {
+    const tick = () => setRemainingMs(new Date(endsAt).getTime() - Date.now())
+    tick()
+    const t = setInterval(tick, 1000)
+    return () => clearInterval(t)
+  }, [endsAt])
+
+  if (remainingMs <= 0) return null
+  const low = remainingMs <= 60_000
+
+  return (
+    <Card
+      className={cn(
+        "mt-5 flex-row items-center gap-3 p-4",
+        low ? "border-destructive/40 bg-destructive/5" : "border-primary/30 bg-primary/5",
+      )}
+    >
+      <span className={cn("grid size-10 shrink-0 place-items-center rounded-lg", low ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary")}>
+        <Hourglass className="size-5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className={cn("text-2xl font-semibold tabular-nums", low ? "text-destructive" : "text-foreground")}>
+          {formatRemaining(remainingMs)}
+        </p>
+        {label && <p className="truncate text-sm text-muted-foreground">{label}</p>}
+      </div>
+    </Card>
   )
 }
 

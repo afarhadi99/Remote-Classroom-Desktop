@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { verifyPassword, setSessionCookie, DUMMY_BCRYPT_HASH } from '@/lib/auth'
+import { verifyPassword, setSessionCookie, createTotpChallengeToken, DUMMY_BCRYPT_HASH } from '@/lib/auth'
 import { apiError, json } from '@/lib/api'
 import { clientIp, throttleKey, checkLock, recordFailure, recordSuccess } from '@/lib/throttle'
 
@@ -33,6 +33,12 @@ export async function POST(req: Request) {
   }
 
   recordSuccess(key)
+
+  if (teacher.totpEnabled) {
+    const challenge = await createTotpChallengeToken(teacher.id)
+    return json({ ok: true, requiresTotp: true, challenge })
+  }
+
   await setSessionCookie({ role: 'teacher', id: teacher.id, name: teacher.name, email: teacher.email })
   return json({ ok: true, teacher: { id: teacher.id, name: teacher.name, email: teacher.email } })
 }

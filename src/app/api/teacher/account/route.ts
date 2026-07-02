@@ -37,6 +37,7 @@ export async function GET() {
       maxConcurrentDesktops: record.maxConcurrentDesktops,
       monthlySpendCapCents: record.monthlySpendCapCents,
     },
+    totpEnabled: record.totpEnabled,
   })
 }
 

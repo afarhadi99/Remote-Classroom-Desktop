@@ -87,6 +87,29 @@ export async function clearSession(): Promise<void> {
   store.delete(COOKIE_NAME)
 }
 
+/**
+ * Short-lived token for the gap between "password verified" and "TOTP code verified" during
+ * a two-factor login. Deliberately not a full session — it can only ever be exchanged for
+ * one, via the totp verify-login endpoint, and expires in 5 minutes.
+ */
+export async function createTotpChallengeToken(teacherId: string): Promise<string> {
+  return await new SignJWT({ purpose: 'totp-challenge', teacherId })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('5m')
+    .sign(secretKey())
+}
+
+export async function verifyTotpChallengeToken(token: string): Promise<string | null> {
+  try {
+    const { payload } = await jwtVerify(token, secretKey())
+    if (payload.purpose !== 'totp-challenge' || typeof payload.teacherId !== 'string') return null
+    return payload.teacherId
+  } catch {
+    return null
+  }
+}
+
 export function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, 10)
 }

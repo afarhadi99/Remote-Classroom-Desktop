@@ -111,5 +111,8 @@ export async function GET() {
     agenda: Array.isArray(classroom.agenda) && classroom.agenda.length
       ? { items: classroom.agenda as string[], step: classroom.agendaStep }
       : null,
+    timer: classroom.timerEndsAt && classroom.timerEndsAt.getTime() > Date.now()
+      ? { endsAt: classroom.timerEndsAt.toISOString(), label: classroom.timerLabel }
+      : null,
   })
 }

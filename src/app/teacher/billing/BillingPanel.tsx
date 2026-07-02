@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { api, formatDurationLabel } from "@/lib/client"
+import { TwoFactorSection } from "./TwoFactorSection"
 
 interface Account {
   teacher: { name: string; email: string }
@@ -31,6 +32,7 @@ interface Account {
   billingEnabled: boolean
   hasBillingAccount: boolean
   guardrails: { maxConcurrentDesktops: number | null; monthlySpendCapCents: number | null }
+  totpEnabled: boolean
 }
 
 interface Usage {
@@ -237,6 +239,8 @@ export function BillingPanel() {
           {savingGuard ? <Spinner /> : <ShieldCheck className="size-4" />} Save guardrails
         </Button>
       </Card>
+
+      <TwoFactorSection enabled={account.totpEnabled} onChanged={load} />
 
       <h2 className="font-display mt-10 text-2xl text-foreground">Change plan</h2>
       <div className="mt-4">

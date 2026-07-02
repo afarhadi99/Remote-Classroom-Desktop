@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/Toast";
+import { ThemeToggle, themeInitScript } from "@/components/ThemeToggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -66,9 +67,16 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-full flex flex-col">
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          {children}
+          <ThemeToggle className="fixed bottom-4 right-4 z-50 shadow-sm" />
+        </ToastProvider>
       </body>
     </html>
   );

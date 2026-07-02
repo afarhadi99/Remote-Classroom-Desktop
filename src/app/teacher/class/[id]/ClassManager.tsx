@@ -37,7 +37,9 @@ import {
   ListChecks,
   ShieldCheck,
   MessageSquare,
+  StickyNote,
   Timer,
+  Hourglass,
   Trash2,
 } from "lucide-react"
 import { Spinner, StatusBadge, OsIcon } from "@/components/brand"
@@ -56,6 +58,7 @@ import { AnnounceModal } from "@/components/AnnounceModal"
 import { PollModal } from "@/components/PollModal"
 import { PreflightModal } from "@/components/PreflightModal"
 import { AgendaModal } from "@/components/AgendaModal"
+import { TimerModal } from "@/components/TimerModal"
 import { AssignmentsModal } from "@/components/AssignmentsModal"
 import { useToast } from "@/components/Toast"
 import { Button } from "@/components/ui/button"
@@ -94,6 +97,7 @@ interface SStudent {
   timeRequestedAt: string | null
   lockedIndividually: boolean
   extraTimePct: number
+  teacherNote: string | null
 }
 interface SGroup {
   id: string
@@ -121,6 +125,8 @@ interface SClassroom {
   announcement: string | null
   agenda: string[]
   agendaStep: number | null
+  timerEndsAt: string | null
+  timerLabel: string | null
   locked: boolean
   lms: { roster: boolean; grades: boolean }
 }
@@ -181,6 +187,7 @@ export function ClassManager({ classId }: { classId: string }) {
   const [announceOpen, setAnnounceOpen] = useState(false)
   const [pollOpen, setPollOpen] = useState(false)
   const [agendaOpen, setAgendaOpen] = useState(false)
+  const [timerOpen, setTimerOpen] = useState(false)
   const [preflightOpen, setPreflightOpen] = useState(false)
   const [pinBusy, setPinBusy] = useState(false)
   const [nrpsBusy, setNrpsBusy] = useState(false)
@@ -348,6 +355,29 @@ export function ClassManager({ classId }: { classId: string }) {
       load()
     } catch (e) {
       toast.error("Could not save accommodation", (e as Error).message)
+    }
+  }
+
+  async function shareParentLink(studentId: string, name: string) {
+    try {
+      const res = await api<{ path: string }>(`/api/students/${studentId}/parent-link`, { method: "POST" })
+      const url = `${window.location.origin}${res.path}`
+      await navigator.clipboard?.writeText(url).catch(() => {})
+      toast.success(`Parent link for ${name} copied`, url)
+    } catch (e) {
+      toast.error("Could not create parent link", (e as Error).message)
+    }
+  }
+
+  async function setNote(studentId: string, name: string, current: string | null) {
+    const text = window.prompt(`Private note about ${name} (only you can see this):`, current ?? "")
+    if (text === null) return
+    try {
+      await api(`/api/students/${studentId}/note`, { method: "PATCH", body: { note: text.trim() || null } })
+      toast.success(text.trim() ? `Saved note for ${name}` : `Cleared note for ${name}`)
+      load()
+    } catch (e) {
+      toast.error("Could not save note", (e as Error).message)
     }
   }
 
@@ -596,6 +626,14 @@ export function ClassManager({ classId }: { classId: string }) {
                 title="Set today's lesson agenda"
               >
                 <ClipboardList className="size-3.5" /> Agenda
+              </Button>
+              <Button
+                variant={classroom.timerEndsAt && new Date(classroom.timerEndsAt).getTime() > Date.now() ? "ink" : "outline"}
+                size="sm"
+                onClick={() => setTimerOpen(true)}
+                title="Start a shared class countdown timer"
+              >
+                <Hourglass className="size-3.5" /> Timer
               </Button>
               <Button
                 variant={classroom.locked ? "ink" : "outline"}
@@ -1022,6 +1060,8 @@ export function ClassManager({ classId }: { classId: string }) {
                   onNudge={() => nudgeStudent(s.id, s.name)}
                   onLock={() => lockStudent(s.id, s.name, !s.lockedIndividually)}
                   onAccommodation={() => setAccommodation(s.id, s.name, s.extraTimePct)}
+                  onNote={() => setNote(s.id, s.name, s.teacherNote)}
+                  onParentLink={() => shareParentLink(s.id, s.name)}
                   onErase={() => eraseStudent(s.id, s.name)}
                 />
               ))}
@@ -1075,6 +1115,14 @@ export function ClassManager({ classId }: { classId: string }) {
         onOpenChange={setAgendaOpen}
         onChanged={load}
       />
+      <TimerModal
+        classId={classId}
+        endsAt={classroom.timerEndsAt}
+        label={classroom.timerLabel}
+        open={timerOpen}
+        onOpenChange={setTimerOpen}
+        onChanged={load}
+      />
     </main>
   )
 }
@@ -1093,6 +1141,8 @@ function StudentCard({
   onNudge,
   onLock,
   onAccommodation,
+  onNote,
+  onParentLink,
   onErase,
 }: {
   student: SStudent
@@ -1108,6 +1158,8 @@ function StudentCard({
   onNudge: () => void
   onLock: () => void
   onAccommodation: () => void
+  onNote: () => void
+  onParentLink: () => void
   onErase: () => void
 }) {
   const m = student.machine
@@ -1196,6 +1248,23 @@ function StudentCard({
           className="cursor-pointer rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-primary"
         >
           <MessageSquare className="size-4" />
+        </button>
+        <button
+          onClick={onNote}
+          title={student.teacherNote ? "Edit your private note" : "Add a private note (only you can see this)"}
+          className={cn(
+            "cursor-pointer rounded-md p-1 transition hover:bg-accent",
+            student.teacherNote ? "text-amber-600" : "text-muted-foreground hover:text-primary",
+          )}
+        >
+          <StickyNote className="size-4" />
+        </button>
+        <button
+          onClick={onParentLink}
+          title="Copy a read-only parent/guardian view link"
+          className="cursor-pointer rounded-md p-1 text-muted-foreground transition hover:bg-accent hover:text-primary"
+        >
+          <Share2 className="size-4" />
         </button>
         {m && <OsIcon os={m.os} className="size-4 text-muted-foreground" />}
         <button

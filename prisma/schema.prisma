@@ -50,6 +50,12 @@ model Teacher {
   ltiPlatformId String?
   ltiSub        String?
 
+  // Two-factor auth (TOTP). totpSecret is set as soon as setup starts but totpEnabled only
+  // flips true once the teacher confirms a code, so an abandoned setup never locks anyone out.
+  totpSecret      String?
+  totpEnabled     Boolean  @default(false)
+  totpBackupCodes String[] @default([]) // bcrypt-hashed, single-use
+
   @@unique([ltiPlatformId, ltiSub])
 }
 
@@ -98,6 +104,9 @@ model Classroom {
   // Lesson agenda shown to students: ordered step texts + the current step index (null = none).
   agenda             Json?
   agendaStep         Int?
+  // Shared class countdown timer (e.g. "10 min for this activity"), shown live to every student.
+  timerEndsAt        DateTime?
+  timerLabel         String?
   createdAt          DateTime  @default(now())
   students           Student[]
   machines           Machine[]
@@ -366,6 +375,10 @@ model Student {
   // LTI user id (the launch `sub`), needed to address this student for AGS grade passback.
   ltiUserId  String?
 
+  // Private teacher note (never shown to the student — a scratchpad for the teacher only).
+  teacherNote String?
+  parentLinks ParentLink[]
+
   @@unique([classroomId, name]) // one identity per name within a class
   @@index([sourcedId])
 }
@@ -468,4 +481,18 @@ model IdempotencyKey {
   createdAt    DateTime @default(now())
 
   @@unique([keyId, idemKey])
+}
+
+// A shareable, revocable read-only link for one student's guardian. Grants a narrow summary
+// view (name, class, monthly usage, whether currently in a session) — never activity logs,
+// flags, teacher notes, or desktop content.
+model ParentLink {
+  id        String    @id @default(cuid())
+  studentId String
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  token     String    @unique
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@index([studentId])
 }

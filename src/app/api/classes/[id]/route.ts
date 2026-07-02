@@ -71,6 +71,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       announcement: classroom.announcement,
       agenda: Array.isArray(classroom.agenda) ? (classroom.agenda as string[]) : [],
       agendaStep: classroom.agendaStep,
+      timerEndsAt: classroom.timerEndsAt ? classroom.timerEndsAt.toISOString() : null,
+      timerLabel: classroom.timerLabel,
       locked: !!classroom.lockedAt,
       lms: { roster: !!classroom.ltiNrpsUrl, grades: !!classroom.ltiAgsLineitemsUrl },
       createdAt: classroom.createdAt.toISOString(),
@@ -100,6 +102,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         timeRequestedAt: s.timeRequestAt ? s.timeRequestAt.toISOString() : null,
         lockedIndividually: !!s.lockedAt,
         extraTimePct: s.extraTimePct,
+        teacherNote: s.teacherNote,
       }
     }),
     groups: groups.map((g) => ({
